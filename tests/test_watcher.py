@@ -21,16 +21,23 @@ def test_record_ignores_empty_stream():
     assert storage.list() == []
 
 
-def test_watch_execs_wl_paste(monkeypatch):
-    captured = {}
+def test_watch_records_clipboard_changes(monkeypatch):
+    # sequência de leituras do clipboard ao longo dos ciclos de poll
+    reads = iter(["a", "a", "b", "a"])
+    monkeypatch.setattr(watcher, "read_clipboard", lambda: next(reads))
+    monkeypatch.setattr(watcher.time, "sleep", lambda s: None)
 
-    def fake_execvp(file, args):
-        captured["file"] = file
-        captured["args"] = args
+    watcher.watch(poll_interval=0, iterations=4)
 
-    monkeypatch.setattr(watcher.os, "execvp", fake_execvp)
-    watcher.watch()
-    assert captured["file"] == "wl-paste"
-    assert captured["args"] == [
-        "wl-paste", "--type", "text", "--watch", "clip-history", "record",
-    ]
+    # "a" repetido não duplica; "b" e o "a" re-copiado sobem ao topo → ["a","b"]
+    assert [e.content for e in storage.list()] == ["a", "b"]
+
+
+def test_watch_skips_none_reads(monkeypatch):
+    reads = iter([None, "x", None])
+    monkeypatch.setattr(watcher, "read_clipboard", lambda: next(reads))
+    monkeypatch.setattr(watcher.time, "sleep", lambda s: None)
+
+    watcher.watch(poll_interval=0, iterations=3)
+
+    assert [e.content for e in storage.list()] == ["x"]

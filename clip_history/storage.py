@@ -84,6 +84,15 @@ def get(entry_id: int) -> "Entry | None":
     return Entry(id=row[0], content=row[1], created_at=row[2]) if row else None
 
 
+def delete(entry_id: int) -> None:
+    conn = _connect()
+    try:
+        conn.execute("DELETE FROM entries WHERE id = ?", (entry_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def clear() -> None:
     conn = _connect()
     try:

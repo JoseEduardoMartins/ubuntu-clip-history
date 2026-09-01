@@ -1,5 +1,26 @@
 # ubuntu-clip-history — Design (v1)
 
+> **Correção (2026-09-01, descoberta no E2E):** o mecanismo de monitoramento
+> mudou. `wl-paste --watch` exige o protocolo wlroots `data-control`, que o
+> **GNOME/Mutter não implementa** ("Watch mode requires a compositor that
+> supports the wlroots data-control protocol"). O `wl-paste` **one-shot**, porém,
+> funciona em background no GNOME. Portanto o watcher passou a fazer **polling**
+> (ler o clipboard a cada ~1s via `wl-paste -n -t text` e gravar quando muda),
+> em vez de `wl-paste --watch`. Além disso, como o ambiente não tem `pip`, o
+> `setup` instala um **launcher** em `~/.local/bin/clip-history` (sem pip), e o
+> serviço/atalho usam o caminho absoluto do launcher. As seções 3.1 e 3.5 abaixo
+> descrevem o desenho original; o comportamento efetivo é o descrito nesta nota.
+>
+> **Auto-paste (descoberto no E2E):** o Ubuntu empacota o **ydotool 0.1.8**, cuja
+> sintaxe de `key` é por nome (`ctrl+v`), não keycodes (`29:1 47:1 …`) — a seção
+> 3.4 usava a sintaxe errada. Além disso: (a) precisa do daemon `ydotoold`
+> (pacote separado) para um dispositivo uinput persistente, senão as teclas são
+> descartadas; (b) precisa de acesso ao `/dev/uinput` (regra udev + grupo
+> `input`); (c) o `Ctrl+V` deve ser disparado num processo **destacado** — um
+> `time.sleep` no handler bloquearia o loop do GTK, o picker não fecharia e o
+> foco não voltaria ao app anterior. O `setup` instala o serviço de usuário
+> `ydotoold.service` e orienta os passos com `sudo`.
+
 **Data:** 2026-09-01
 **Repo:** git@github.com:JoseEduardoMartins/ubuntu-clip-history.git
 **Ambiente alvo:** Ubuntu, Wayland, GNOME (Mutter)

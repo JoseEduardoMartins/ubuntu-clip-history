@@ -58,3 +58,18 @@ def test_clear():
     storage.add("x")
     storage.clear()
     assert storage.list() == []
+
+
+def test_delete_removes_only_target():
+    storage.add("a")
+    storage.add("b")
+    storage.add("c")
+    target = [e for e in storage.list() if e.content == "b"][0]
+    storage.delete(target.id)
+    assert [e.content for e in storage.list()] == ["c", "a"]
+
+
+def test_delete_nonexistent_is_noop():
+    storage.add("only")
+    storage.delete(999999)
+    assert [e.content for e in storage.list()] == ["only"]
