@@ -37,8 +37,24 @@ class PickerWindow(Adw.ApplicationWindow):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_content(box)
 
+        titlebar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        titlebar.set_margin_top(8)
+        titlebar.set_margin_start(10)
+        titlebar.set_margin_end(8)
+        title = Gtk.Label(label="Área de Transferência", xalign=0, hexpand=True)
+        title.add_css_class("title-4")
+        titlebar.append(title)
+
+        close_btn = Gtk.Button(icon_name="window-close-symbolic")
+        close_btn.set_tooltip_text("Fechar")
+        close_btn.add_css_class("flat")
+        close_btn.set_valign(Gtk.Align.CENTER)
+        close_btn.connect("clicked", self._on_close_clicked)
+        titlebar.append(close_btn)
+        box.append(titlebar)
+
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        header.set_margin_top(8)
+        header.set_margin_top(6)
         header.set_margin_bottom(8)
         header.set_margin_start(8)
         header.set_margin_end(8)
@@ -159,6 +175,9 @@ class PickerWindow(Adw.ApplicationWindow):
 
     def _on_pin_clicked(self, _button, entry):
         self._toggle_pin(entry)
+
+    def _on_close_clicked(self, _button):
+        self.close()
 
     def _on_active_changed(self, *_args):
         # Fecha ao perder o foco (clicar fora), mas só depois de ter recebido
