@@ -97,10 +97,10 @@ class PickerWindow(Adw.ApplicationWindow):
             label.set_margin_end(6)
             hbox.append(label)
 
-            pin_btn = Gtk.Button(
-                icon_name="starred-symbolic" if entry.pinned
-                else "non-starred-symbolic"
-            )
+            # Mesmo ícone de pino nos dois estados; fixado = opaco, não fixado =
+            # esmaecido (view-pin-symbolic existe no Adwaita e no Yaru).
+            pin_btn = Gtk.Button(icon_name="view-pin-symbolic")
+            pin_btn.set_opacity(1.0 if entry.pinned else 0.35)
             pin_btn.set_tooltip_text("Desafixar" if entry.pinned else "Fixar")
             pin_btn.add_css_class("flat")
             pin_btn.set_valign(Gtk.Align.CENTER)
