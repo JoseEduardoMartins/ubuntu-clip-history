@@ -1,0 +1,15 @@
+[Unit]
+Description=ydotoold - daemon de uinput persistente para o ydotool (clip-history)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStartPre=-/bin/rm -f /tmp/.ydotool_socket
+# `sg input` garante o grupo 'input' mesmo se o systemd --user do login não o
+# tiver (grupo novo só entra numa sessão nova; sg lê a filiação de /etc/group).
+ExecStart=/usr/bin/sg input -c /usr/bin/ydotoold
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -54,6 +54,11 @@ def test_free_super_v_strips_v(monkeypatch):
     assert set_calls[0][-1] == "['<Super>m']"
 
 
+def test_ydotoold_service_skipped_when_absent(monkeypatch):
+    monkeypatch.setattr(setup.shutil, "which", lambda name: None)
+    assert setup.install_ydotoold_service() is False
+
+
 def test_next_custom_path_allocates_first_free():
     base = setup._CUSTOM_BASE
     assert setup._next_custom_path([]) == f"{base}custom0/"

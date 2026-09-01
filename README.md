@@ -30,15 +30,32 @@ Serviço e atalho usam o caminho absoluto do launcher, então não dependem do
 PATH. Para chamar `clip-history` no terminal, garanta que `~/.local/bin` esteja
 no PATH (relogar após criá-lo costuma bastar no Ubuntu).
 
-### Auto-paste (ydotool)
+### Auto-paste (opcional)
+
+Sem isto, escolher um item copia para o clipboard e uma notificação lembra de
+apertar `Ctrl+V`. Com isto, o item é **colado automaticamente** (estilo Win+V).
+
+O Ubuntu empacota o **ydotool 0.1.8** (sem daemon embutido e com sintaxe de
+teclas por nome, `ctrl+v`). O auto-paste precisa do daemon `ydotoold` e de
+acesso ao `/dev/uinput`:
 
 ```bash
-sudo systemctl enable --now ydotool     # sobe o ydotoold
-sudo usermod -aG input "$USER"          # acesso a /dev/uinput (relogar depois)
+# 1. daemon do ydotool (pacote separado)
+sudo apt install ydotoold
+
+# 2. libere o /dev/uinput para o grupo 'input' (o node é estático → static_node)
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' \
+  | sudo tee /etc/udev/rules.d/99-uinput.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+
+# 3. entre no grupo 'input' (e faça LOGOUT/LOGIN depois)
+sudo usermod -aG input "$USER"
 ```
 
-Sem o ydotool funcionando, ao escolher um item ele vai para o clipboard e uma
-notificação lembra de apertar `Ctrl+V`.
+Depois de relogar, rode `clip-history setup` de novo. Ele instala o serviço de
+usuário `ydotoold.service` (que sobe o daemon via `sg input`, com socket em
+`/tmp/.ydotool_socket`). O `paste` dispara o `Ctrl+V` num processo destacado,
+para que o picker feche e o foco volte ao app anterior antes da colagem.
 
 ## Uso
 

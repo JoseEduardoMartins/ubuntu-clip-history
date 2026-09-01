@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 SERVICE_NAME = "clip-history-watch.service"
+YDOTOOLD_SERVICE = "ydotoold.service"
 _MEDIA_KEYS = "org.gnome.settings-daemon.plugins.media-keys"
 _SHELL_KEYS = "org.gnome.shell.keybindings"
 # O gsd-media-keys só registra caminhos no padrão customN (custom0, custom1…);
@@ -81,15 +82,28 @@ def install_launcher() -> Path:
     return dst
 
 
-def install_service() -> None:
-    src = _repo_root() / "systemd" / SERVICE_NAME
-    dst = Path.home() / ".config" / "systemd" / "user" / SERVICE_NAME
+def _install_user_service(name: str) -> None:
+    src = _repo_root() / "systemd" / name
+    dst = Path.home() / ".config" / "systemd" / "user" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(src.read_text())
     subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
     subprocess.run(
-        ["systemctl", "--user", "enable", "--now", SERVICE_NAME], check=False
+        ["systemctl", "--user", "enable", "--now", name], check=False
     )
+
+
+def install_service() -> None:
+    _install_user_service(SERVICE_NAME)
+
+
+def install_ydotoold_service() -> bool:
+    """Instala/habilita o serviço de usuário do ydotoold (daemon do auto-paste),
+    se o binário existir. Retorna True se instalou."""
+    if shutil.which("ydotoold") is None:
+        return False
+    _install_user_service(YDOTOOLD_SERVICE)
+    return True
 
 
 def _current_keybindings() -> list:
@@ -153,6 +167,7 @@ def run() -> int:
     install_service()
     free_super_v()
     install_keybinding()
+    ydotoold_ok = install_ydotoold_service()
 
     print("clip-history configurado:")
     print(f"  • launcher: {launcher}")
@@ -160,6 +175,8 @@ def run() -> int:
           f"(status: systemctl --user status {SERVICE_NAME})")
     print("  • atalho: Super+V → clip-history show "
           "(liberado do toggle-message-tray; Super+M ainda abre as notificações)")
+    if ydotoold_ok:
+        print(f"  • auto-paste: {YDOTOOLD_SERVICE} habilitado")
     print("\n>>> Faça LOGOUT e login de novo para o GNOME registrar o Super+V "
           "<<<\n    (o gsd-media-keys só captura atalhos custom no início da "
           "sessão)")
@@ -177,9 +194,16 @@ def run() -> int:
         print("\nInstale com:")
         print("  sudo apt install wl-clipboard python3-gi "
               "gir1.2-gtk-4.0 gir1.2-adw-1 ydotool")
-        print("\nPara o auto-paste (ydotool):")
-        print("  1. habilite o daemon: sudo systemctl enable --now ydotool "
-              "(ou rode 'ydotoold')")
-        print("  2. garanta acesso a /dev/uinput "
-              "(adicione seu usuário ao grupo 'input' ou crie uma regra udev)")
+
+    print("\nAuto-paste (opcional — sem ele o app usa copy-only + Ctrl+V):")
+    if not shutil.which("ydotoold"):
+        print("  • instale o daemon: sudo apt install ydotoold")
+    print("  • libere o /dev/uinput e entre no grupo 'input' (uma vez, com sudo):")
+    print("      echo 'KERNEL==\"uinput\", GROUP=\"input\", MODE=\"0660\", "
+          "OPTIONS+=\"static_node=uinput\"' | \\")
+    print("        sudo tee /etc/udev/rules.d/99-uinput.rules")
+    print("      sudo udevadm control --reload-rules && sudo udevadm trigger")
+    print("      sudo usermod -aG input \"$USER\"   # e faça logout/login")
+    print("  Depois de relogar, rode 'clip-history setup' de novo (ou "
+          "'systemctl --user restart ydotoold').")
     return 0

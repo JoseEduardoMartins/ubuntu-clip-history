@@ -10,6 +10,16 @@
 > `setup` instala um **launcher** em `~/.local/bin/clip-history` (sem pip), e o
 > serviço/atalho usam o caminho absoluto do launcher. As seções 3.1 e 3.5 abaixo
 > descrevem o desenho original; o comportamento efetivo é o descrito nesta nota.
+>
+> **Auto-paste (descoberto no E2E):** o Ubuntu empacota o **ydotool 0.1.8**, cuja
+> sintaxe de `key` é por nome (`ctrl+v`), não keycodes (`29:1 47:1 …`) — a seção
+> 3.4 usava a sintaxe errada. Além disso: (a) precisa do daemon `ydotoold`
+> (pacote separado) para um dispositivo uinput persistente, senão as teclas são
+> descartadas; (b) precisa de acesso ao `/dev/uinput` (regra udev + grupo
+> `input`); (c) o `Ctrl+V` deve ser disparado num processo **destacado** — um
+> `time.sleep` no handler bloquearia o loop do GTK, o picker não fecharia e o
+> foco não voltaria ao app anterior. O `setup` instala o serviço de usuário
+> `ydotoold.service` e orienta os passos com `sudo`.
 
 **Data:** 2026-09-01
 **Repo:** git@github.com:JoseEduardoMartins/ubuntu-clip-history.git
