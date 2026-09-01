@@ -1,0 +1,18 @@
+[project]
+name = "ubuntu-clip-history"
+version = "0.1.0"
+description = "Histórico de clipboard estilo Win+V para Ubuntu/Wayland/GNOME"
+requires-python = ">=3.10"
+
+[project.scripts]
+clip-history = "clip_history.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["clip_history"]
