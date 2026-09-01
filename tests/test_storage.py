@@ -73,3 +73,52 @@ def test_delete_nonexistent_is_noop():
     storage.add("only")
     storage.delete(999999)
     assert [e.content for e in storage.list()] == ["only"]
+
+
+def test_new_entries_are_unpinned():
+    storage.add("x")
+    assert storage.list()[0].pinned is False
+
+
+def test_set_pinned_puts_item_on_top():
+    storage.add("a")
+    storage.add("b")
+    storage.add("c")  # ordem por recência: c, b, a
+    a = [e for e in storage.list() if e.content == "a"][0]
+    storage.set_pinned(a.id, True)
+    listed = storage.list()
+    assert listed[0].content == "a"
+    assert listed[0].pinned is True
+    # os não-fixados seguem por recência
+    assert [e.content for e in listed] == ["a", "c", "b"]
+
+
+def test_unpin_returns_to_recency_order():
+    storage.add("a")
+    storage.add("b")
+    a = [e for e in storage.list() if e.content == "a"][0]
+    storage.set_pinned(a.id, True)
+    storage.set_pinned(a.id, False)
+    assert [e.content for e in storage.list()] == ["b", "a"]
+
+
+def test_pinned_items_immune_to_cap():
+    storage.add("keep-me")
+    kept = storage.list()[0]
+    storage.set_pinned(kept.id, True)
+    for i in range(config.LIMIT + 5):
+        storage.add(f"noise-{i}")
+    contents = [e.content for e in storage.list()]
+    assert "keep-me" in contents
+    unpinned = [c for c in contents if c != "keep-me"]
+    assert len(unpinned) == config.LIMIT  # cap conta só os não-fixados
+
+
+def test_dedup_preserves_pin():
+    storage.add("dup")
+    d = storage.list()[0]
+    storage.set_pinned(d.id, True)
+    storage.add("dup")  # re-copiado
+    listed = [e for e in storage.list() if e.content == "dup"]
+    assert len(listed) == 1
+    assert listed[0].pinned is True
