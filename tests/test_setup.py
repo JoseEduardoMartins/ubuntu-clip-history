@@ -1,3 +1,5 @@
+import os
+
 from clip_history import setup
 
 
@@ -16,3 +18,16 @@ def test_check_deps_all_present(monkeypatch):
     monkeypatch.setattr(setup, "_gtk_available", lambda: True)
     missing = setup.check_deps()
     assert missing == []
+
+
+def test_install_launcher_writes_executable(monkeypatch, tmp_path):
+    monkeypatch.setattr(setup.Path, "home", classmethod(lambda cls: tmp_path))
+    launcher = setup.install_launcher()
+    assert launcher == tmp_path / ".local" / "bin" / "clip-history"
+    assert launcher.exists()
+    assert os.access(launcher, os.X_OK)
+    body = launcher.read_text()
+    assert body.startswith("#!/bin/sh")
+    assert "from clip_history.cli import main" in body
+    # aponta para a raiz real do repositório (dois níveis acima de setup.py)
+    assert str(setup._repo_root()) in body

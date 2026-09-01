@@ -1,4 +1,5 @@
 import ast
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,6 +10,14 @@ KEYBINDING_PATH = (
     "custom-keybindings/clip-history/"
 )
 _MEDIA_KEYS = "org.gnome.settings-daemon.plugins.media-keys"
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def launcher_path() -> Path:
+    return Path.home() / ".local" / "bin" / "clip-history"
 
 
 def _gtk_available() -> bool:
@@ -33,8 +42,23 @@ def check_deps() -> list:
     return missing
 
 
+def install_launcher() -> Path:
+    """Escreve um launcher `clip-history` em ~/.local/bin apontando para este
+    repositório (dispensa pip). Serviço e atalho usam o caminho absoluto dele."""
+    root = _repo_root()
+    dst = launcher_path()
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(
+        "#!/bin/sh\n"
+        f"exec python3 -c \"import sys; sys.path.insert(0, '{root}'); "
+        "from clip_history.cli import main; sys.exit(main())\" \"$@\"\n"
+    )
+    dst.chmod(0o755)
+    return dst
+
+
 def install_service() -> None:
-    src = Path(__file__).resolve().parent.parent / "systemd" / SERVICE_NAME
+    src = _repo_root() / "systemd" / SERVICE_NAME
     dst = Path.home() / ".config" / "systemd" / "user" / SERVICE_NAME
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(src.read_text())
@@ -69,21 +93,29 @@ def install_keybinding() -> None:
     )
     child = f"{_MEDIA_KEYS}.custom-keybinding:{KEYBINDING_PATH}"
     subprocess.run(["gsettings", "set", child, "name", "clip-history"], check=False)
-    subprocess.run(
-        ["gsettings", "set", child, "command", "clip-history show"], check=False
-    )
+    # caminho absoluto do launcher — não depende do PATH da sessão do GNOME
+    command = f"{launcher_path()} show"
+    subprocess.run(["gsettings", "set", child, "command", command], check=False)
     subprocess.run(["gsettings", "set", child, "binding", "<Super>v"], check=False)
 
 
 def run() -> int:
     missing = check_deps()
+    launcher = install_launcher()
     install_service()
     install_keybinding()
 
     print("clip-history configurado:")
+    print(f"  • launcher: {launcher}")
     print(f"  • serviço: {SERVICE_NAME} "
           f"(status: systemctl --user status {SERVICE_NAME})")
     print("  • atalho: Super+V → clip-history show")
+
+    bindir = str(launcher.parent)
+    if bindir not in os.environ.get("PATH", "").split(":"):
+        print(f"\nDica: adicione {bindir} ao PATH para rodar 'clip-history' "
+              "no terminal.")
+        print("  (o serviço e o atalho Super+V já usam o caminho absoluto)")
 
     if missing:
         print("\nDependências faltando:")

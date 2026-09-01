@@ -1,5 +1,16 @@
 # ubuntu-clip-history — Design (v1)
 
+> **Correção (2026-09-01, descoberta no E2E):** o mecanismo de monitoramento
+> mudou. `wl-paste --watch` exige o protocolo wlroots `data-control`, que o
+> **GNOME/Mutter não implementa** ("Watch mode requires a compositor that
+> supports the wlroots data-control protocol"). O `wl-paste` **one-shot**, porém,
+> funciona em background no GNOME. Portanto o watcher passou a fazer **polling**
+> (ler o clipboard a cada ~1s via `wl-paste -n -t text` e gravar quando muda),
+> em vez de `wl-paste --watch`. Além disso, como o ambiente não tem `pip`, o
+> `setup` instala um **launcher** em `~/.local/bin/clip-history` (sem pip), e o
+> serviço/atalho usam o caminho absoluto do launcher. As seções 3.1 e 3.5 abaixo
+> descrevem o desenho original; o comportamento efetivo é o descrito nesta nota.
+
 **Data:** 2026-09-01
 **Repo:** git@github.com:JoseEduardoMartins/ubuntu-clip-history.git
 **Ambiente alvo:** Ubuntu, Wayland, GNOME (Mutter)
