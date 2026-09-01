@@ -2,14 +2,22 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gdk, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, Gtk, Pango  # noqa: E402
 
 from clip_history import paste, storage  # noqa: E402
 
+# Cap só de segurança: evita medir/renderizar labels gigantes (o histórico
+# aceita até 100 KB). O corte VISUAL com "…" fica por conta do Pango, por pixel,
+# de acordo com a largura disponível — ver Gtk.Label.set_ellipsize no _populate.
+_MAX_PREVIEW_CHARS = 500
+
+# Tamanho da janela do picker.
+_WINDOW_WIDTH = 600
+_WINDOW_HEIGHT = 500
+
 
 def _preview(text: str) -> str:
-    flat = " ".join(text.split())
-    return (flat[:80] + "…") if len(flat) > 80 else flat
+    return " ".join(text.split())[:_MAX_PREVIEW_CHARS]
 
 
 class PickerWindow(Adw.ApplicationWindow):
@@ -18,7 +26,13 @@ class PickerWindow(Adw.ApplicationWindow):
         self.entries = entries
         self.visible_entries = []
         self.index = 0
-        self.set_default_size(560, 480)
+        # Tamanho fixo da janela; a largura é o que faz o texto longo ganhar "…".
+        self.set_default_size(_WINDOW_WIDTH, _WINDOW_HEIGHT)
+        # Fecha ao clicar fora (perder o foco). Só depois de ter ganhado foco ao
+        # menos uma vez, e nunca enquanto o diálogo de confirmação está aberto.
+        self._was_active = False
+        self._suppress_close = False
+        self.connect("notify::is-active", self._on_active_changed)
 
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_content(box)
@@ -34,9 +48,8 @@ class PickerWindow(Adw.ApplicationWindow):
         self.search.connect("search-changed", self._on_search)
         header.append(self.search)
 
-        clear_btn = Gtk.Button(icon_name="user-trash-symbolic")
-        clear_btn.set_tooltip_text("Limpar tudo")
-        clear_btn.add_css_class("flat")
+        clear_btn = Gtk.Button(label="Limpar tudo")
+        clear_btn.set_tooltip_text("Remove todos os itens do histórico")
         clear_btn.set_valign(Gtk.Align.CENTER)
         clear_btn.connect("clicked", self._on_clear_clicked)
         header.append(clear_btn)
@@ -47,6 +60,9 @@ class PickerWindow(Adw.ApplicationWindow):
         self.listbox.connect("row-activated", self._on_row_activated)
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
+        # Sem rolagem horizontal: a linha é limitada à largura da janela, o que
+        # faz o ellipsize do label cortar o texto com "…".
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroller.set_child(self.listbox)
         box.append(scroller)
 
@@ -72,6 +88,9 @@ class PickerWindow(Adw.ApplicationWindow):
             label = Gtk.Label(xalign=0, hexpand=True)
             prefix = f"{i + 1}. " if i < 9 else ""
             label.set_text(prefix + _preview(entry.content))
+            # "…" por pixel quando o texto não cabe na largura da janela.
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            label.set_single_line_mode(True)
             label.set_margin_top(6)
             label.set_margin_bottom(6)
             label.set_margin_start(10)
@@ -141,7 +160,17 @@ class PickerWindow(Adw.ApplicationWindow):
     def _on_pin_clicked(self, _button, entry):
         self._toggle_pin(entry)
 
+    def _on_active_changed(self, *_args):
+        # Fecha ao perder o foco (clicar fora), mas só depois de ter recebido
+        # foco ao menos uma vez e nunca com o diálogo de confirmação aberto
+        # (o diálogo tira o foco da janela e não pode fechá-la por baixo).
+        if self.is_active():
+            self._was_active = True
+        elif self._was_active and not self._suppress_close:
+            self.close()
+
     def _on_clear_clicked(self, _button):
+        self._suppress_close = True
         dialog = Adw.MessageDialog.new(
             self,
             "Limpar todo o histórico?",
@@ -158,6 +187,9 @@ class PickerWindow(Adw.ApplicationWindow):
         dialog.present()
 
     def _on_clear_response(self, _dialog, response):
+        # Reativa o fechar-ao-perder-foco. O foco volta pra janela do picker,
+        # então is-active volta a True e o _was_active continua válido.
+        self._suppress_close = False
         if response == "clear":
             storage.clear()
             self._refresh()
