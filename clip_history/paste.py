@@ -1,10 +1,8 @@
 import shutil
 import subprocess
-import time
 
 # Sintaxe do ydotool 0.1.x (empacotado no Ubuntu): nomes com "+".
 # (A série 0.2+/1.x usa keycodes "29:1 47:1 47:0 29:0" — incompatível.)
-_KEY_CTRL_V = ["ydotool", "key", "ctrl+v"]
 
 
 def copy(content: str) -> None:
@@ -20,10 +18,17 @@ def _notify(message: str) -> None:
         subprocess.run(["notify-send", "clip-history", message], check=False)
 
 
-def paste(content: str, delay: float = 0.12) -> None:
-    """Coloca `content` no clipboard e cola no app focado.
+def paste(content: str, delay: float = 0.25) -> None:
+    """Copia `content` e cola no app anterior via Ctrl+V (ydotool).
 
-    Cai em copy-only (com notificação) se o ydotool não existir ou falhar.
+    O Ctrl+V roda num processo DESTACADO que espera `delay`s antes de injetar.
+    Isso é essencial: o picker precisa fechar e o foco voltar ao app anterior
+    ANTES da injeção. Se usássemos time.sleep aqui, bloquearíamos o loop do
+    GTK, o picker nem fecharia e o foco nunca voltaria — o Ctrl+V iria pro
+    limbo. Como é destacado (start_new_session), sobrevive ao picker sair.
+
+    Sem ydotool, cai em copy-only + notificação. Se o ydotool falhar em runtime,
+    o próprio processo destacado notifica (via `|| notify-send`).
     """
     try:
         copy(content)
@@ -33,8 +38,11 @@ def paste(content: str, delay: float = 0.12) -> None:
     if not _ydotool_available():
         _notify("Copiado — aperte Ctrl+V para colar")
         return
-    time.sleep(delay)  # deixa o foco voltar ao app anterior
-    try:
-        subprocess.run(_KEY_CTRL_V, check=True)
-    except (subprocess.CalledProcessError, OSError):
-        _notify("Copiado — aperte Ctrl+V para colar")
+    subprocess.Popen(
+        [
+            "sh", "-c",
+            f"sleep {delay}; ydotool key ctrl+v || "
+            "notify-send clip-history 'Copiado — aperte Ctrl+V para colar'",
+        ],
+        start_new_session=True,
+    )
