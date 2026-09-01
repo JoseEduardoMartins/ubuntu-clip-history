@@ -2,9 +2,9 @@ import shutil
 import subprocess
 import time
 
-# keycodes do Linux input (evdev): Ctrl esquerdo = 29, V = 47
-_CTRL = "29"
-_V = "47"
+# Sintaxe do ydotool 0.1.x (empacotado no Ubuntu): nomes com "+".
+# (A série 0.2+/1.x usa keycodes "29:1 47:1 47:0 29:0" — incompatível.)
+_KEY_CTRL_V = ["ydotool", "key", "ctrl+v"]
 
 
 def copy(content: str) -> None:
@@ -35,9 +35,6 @@ def paste(content: str, delay: float = 0.12) -> None:
         return
     time.sleep(delay)  # deixa o foco voltar ao app anterior
     try:
-        subprocess.run(
-            ["ydotool", "key", f"{_CTRL}:1", f"{_V}:1", f"{_V}:0", f"{_CTRL}:0"],
-            check=True,
-        )
+        subprocess.run(_KEY_CTRL_V, check=True)
     except (subprocess.CalledProcessError, OSError):
         _notify("Copiado — aperte Ctrl+V para colar")

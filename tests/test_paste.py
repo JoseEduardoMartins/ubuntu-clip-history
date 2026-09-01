@@ -29,8 +29,8 @@ def test_invokes_ydotool_when_available(monkeypatch):
     monkeypatch.setattr(paste.subprocess, "run", fake_run)
     paste.paste("hi", delay=0)
     assert recorded["copy"] == "hi"
-    assert recorded["run_args"][0] == "ydotool"
-    assert recorded["run_args"][1] == "key"
+    # sintaxe do ydotool 0.1.x empacotado no Ubuntu
+    assert recorded["run_args"] == ["ydotool", "key", "ctrl+v"]
 
 
 def test_copy_failure_notifies(monkeypatch):
