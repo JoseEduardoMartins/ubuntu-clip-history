@@ -20,6 +20,8 @@ python3 -m clip_history setup   # rode a partir da raiz do repositório
 
 O `setup` (sem pip) instala um launcher em `~/.local/bin/clip-history`, o
 serviço de gravação (systemd --user) e o atalho `Super+V`, e avisa o que faltar.
+Ele também libera o `Super+V` do atalho embutido do GNOME (`toggle-message-tray`,
+que abre a central de notificações) — o `Super+M` continua abrindo as notificações.
 Serviço e atalho usam o caminho absoluto do launcher, então não dependem do
 PATH. Para chamar `clip-history` no terminal, garanta que `~/.local/bin` esteja
 no PATH (relogar após criá-lo costuma bastar no Ubuntu).

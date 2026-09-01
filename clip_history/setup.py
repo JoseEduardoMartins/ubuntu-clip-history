@@ -10,6 +10,7 @@ KEYBINDING_PATH = (
     "custom-keybindings/clip-history/"
 )
 _MEDIA_KEYS = "org.gnome.settings-daemon.plugins.media-keys"
+_SHELL_KEYS = "org.gnome.shell.keybindings"
 
 
 def _repo_root() -> Path:
@@ -83,6 +84,26 @@ def _current_keybindings() -> list:
         return []
 
 
+def free_super_v() -> None:
+    """Libera o Super+V: por padrão o GNOME o vincula a `toggle-message-tray`
+    (abre a central de notificações), e esse atalho embutido ganha do nosso
+    custom. Remove só o `<Super>v`, mantendo os demais (ex.: `<Super>m`)."""
+    out = subprocess.run(
+        ["gsettings", "get", _SHELL_KEYS, "toggle-message-tray"],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    try:
+        bindings = list(ast.literal_eval(out)) if out else []
+    except (ValueError, SyntaxError):
+        return
+    keep = [b for b in bindings if b.lower() != "<super>v"]
+    if keep != bindings:
+        subprocess.run(
+            ["gsettings", "set", _SHELL_KEYS, "toggle-message-tray", str(keep)],
+            check=False,
+        )
+
+
 def install_keybinding() -> None:
     bindings = _current_keybindings()
     if KEYBINDING_PATH not in bindings:
@@ -103,13 +124,15 @@ def run() -> int:
     missing = check_deps()
     launcher = install_launcher()
     install_service()
+    free_super_v()
     install_keybinding()
 
     print("clip-history configurado:")
     print(f"  • launcher: {launcher}")
     print(f"  • serviço: {SERVICE_NAME} "
           f"(status: systemctl --user status {SERVICE_NAME})")
-    print("  • atalho: Super+V → clip-history show")
+    print("  • atalho: Super+V → clip-history show "
+          "(liberado do toggle-message-tray; Super+M ainda abre as notificações)")
 
     bindir = str(launcher.parent)
     if bindir not in os.environ.get("PATH", "").split(":"):
