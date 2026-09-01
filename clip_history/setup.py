@@ -5,12 +5,35 @@ import subprocess
 from pathlib import Path
 
 SERVICE_NAME = "clip-history-watch.service"
-KEYBINDING_PATH = (
-    "/org/gnome/settings-daemon/plugins/media-keys/"
-    "custom-keybindings/clip-history/"
-)
 _MEDIA_KEYS = "org.gnome.settings-daemon.plugins.media-keys"
 _SHELL_KEYS = "org.gnome.shell.keybindings"
+# O gsd-media-keys só registra caminhos no padrão customN (custom0, custom1…);
+# nomes fora desse padrão são ignorados.
+_CUSTOM_BASE = (
+    "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/"
+)
+_CUSTOM_NAME = "clip-history"
+
+
+def _next_custom_path(existing) -> str:
+    i = 0
+    while f"{_CUSTOM_BASE}custom{i}/" in existing:
+        i += 1
+    return f"{_CUSTOM_BASE}custom{i}/"
+
+
+def _keybinding_path(existing) -> str:
+    """Reusa um slot já nosso (name == clip-history) para ser idempotente;
+    senão aloca o próximo customN livre."""
+    for path in existing:
+        child = f"{_MEDIA_KEYS}.custom-keybinding:{path}"
+        name = subprocess.run(
+            ["gsettings", "get", child, "name"],
+            capture_output=True, text=True,
+        ).stdout.strip().strip("'")
+        if name == _CUSTOM_NAME:
+            return path
+    return _next_custom_path(existing)
 
 
 def _repo_root() -> Path:
@@ -104,20 +127,24 @@ def free_super_v() -> None:
         )
 
 
-def install_keybinding() -> None:
+def install_keybinding() -> str:
     bindings = _current_keybindings()
-    if KEYBINDING_PATH not in bindings:
-        bindings.append(KEYBINDING_PATH)
+    path = _keybinding_path(bindings)
+    if path not in bindings:
+        bindings.append(path)
     subprocess.run(
         ["gsettings", "set", _MEDIA_KEYS, "custom-keybindings", str(bindings)],
         check=False,
     )
-    child = f"{_MEDIA_KEYS}.custom-keybinding:{KEYBINDING_PATH}"
-    subprocess.run(["gsettings", "set", child, "name", "clip-history"], check=False)
+    child = f"{_MEDIA_KEYS}.custom-keybinding:{path}"
+    subprocess.run(
+        ["gsettings", "set", child, "name", _CUSTOM_NAME], check=False
+    )
     # caminho absoluto do launcher — não depende do PATH da sessão do GNOME
     command = f"{launcher_path()} show"
     subprocess.run(["gsettings", "set", child, "command", command], check=False)
     subprocess.run(["gsettings", "set", child, "binding", "<Super>v"], check=False)
+    return path
 
 
 def run() -> int:
@@ -133,6 +160,9 @@ def run() -> int:
           f"(status: systemctl --user status {SERVICE_NAME})")
     print("  • atalho: Super+V → clip-history show "
           "(liberado do toggle-message-tray; Super+M ainda abre as notificações)")
+    print("\n>>> Faça LOGOUT e login de novo para o GNOME registrar o Super+V "
+          "<<<\n    (o gsd-media-keys só captura atalhos custom no início da "
+          "sessão)")
 
     bindir = str(launcher.parent)
     if bindir not in os.environ.get("PATH", "").split(":"):

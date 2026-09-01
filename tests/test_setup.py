@@ -54,6 +54,15 @@ def test_free_super_v_strips_v(monkeypatch):
     assert set_calls[0][-1] == "['<Super>m']"
 
 
+def test_next_custom_path_allocates_first_free():
+    base = setup._CUSTOM_BASE
+    assert setup._next_custom_path([]) == f"{base}custom0/"
+    assert setup._next_custom_path([f"{base}custom0/"]) == f"{base}custom1/"
+    assert setup._next_custom_path(
+        [f"{base}custom0/", f"{base}custom1/"]
+    ) == f"{base}custom2/"
+
+
 def test_free_super_v_noop_when_absent(monkeypatch):
     calls = []
 
