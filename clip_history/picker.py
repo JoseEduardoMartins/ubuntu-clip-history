@@ -78,6 +78,16 @@ class PickerWindow(Adw.ApplicationWindow):
             label.set_margin_end(6)
             hbox.append(label)
 
+            pin_btn = Gtk.Button(
+                icon_name="starred-symbolic" if entry.pinned
+                else "non-starred-symbolic"
+            )
+            pin_btn.set_tooltip_text("Desafixar" if entry.pinned else "Fixar")
+            pin_btn.add_css_class("flat")
+            pin_btn.set_valign(Gtk.Align.CENTER)
+            pin_btn.connect("clicked", self._on_pin_clicked, entry)
+            hbox.append(pin_btn)
+
             del_btn = Gtk.Button(icon_name="window-close-symbolic")
             del_btn.set_tooltip_text("Excluir este item")
             del_btn.add_css_class("flat")
@@ -115,6 +125,10 @@ class PickerWindow(Adw.ApplicationWindow):
         storage.delete(entry.id)
         self._refresh()
 
+    def _toggle_pin(self, entry):
+        storage.set_pinned(entry.id, not entry.pinned)
+        self._refresh()
+
     def _on_search(self, _entry):
         self._populate(self.search.get_text())
 
@@ -123,6 +137,9 @@ class PickerWindow(Adw.ApplicationWindow):
 
     def _on_delete_clicked(self, _button, entry):
         self._delete_entry(entry)
+
+    def _on_pin_clicked(self, _button, entry):
+        self._toggle_pin(entry)
 
     def _on_clear_clicked(self, _button):
         dialog = Adw.MessageDialog.new(
@@ -155,6 +172,12 @@ class PickerWindow(Adw.ApplicationWindow):
         if keyval in (Gdk.KEY_Delete, Gdk.KEY_KP_Delete):
             if 0 <= self.index < len(self.visible_entries):
                 self._delete_entry(self.visible_entries[self.index])
+            return True
+        if state & Gdk.ModifierType.CONTROL_MASK and keyval in (
+            Gdk.KEY_p, Gdk.KEY_P
+        ):
+            if 0 <= self.index < len(self.visible_entries):
+                self._toggle_pin(self.visible_entries[self.index])
             return True
         if keyval == Gdk.KEY_Down:
             self._select(self.index + 1)
