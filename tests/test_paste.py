@@ -33,6 +33,24 @@ def test_invokes_ydotool_when_available(monkeypatch):
     assert recorded["run_args"][1] == "key"
 
 
+def test_copy_failure_notifies(monkeypatch):
+    import subprocess
+    notified = {}
+    run_calls = []
+
+    def boom(c):
+        raise subprocess.CalledProcessError(1, ["wl-copy"])
+
+    monkeypatch.setattr(paste, "copy", boom)
+    monkeypatch.setattr(paste.shutil, "which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(paste, "_notify", lambda m: notified.__setitem__("m", m))
+    monkeypatch.setattr(paste.subprocess, "run",
+                        lambda *a, **k: run_calls.append(a))
+    paste.paste("hi", delay=0)
+    assert notified.get("m") is not None
+    assert run_calls == []  # ydotool nunca chamado
+
+
 def test_ydotool_failure_falls_back(monkeypatch):
     import subprocess
     notified = {}

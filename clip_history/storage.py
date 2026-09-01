@@ -26,10 +26,6 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_entries_created_at "
-        "ON entries(created_at DESC)"
-    )
     return conn
 
 
@@ -38,23 +34,28 @@ def add(content: str) -> None:
         return
     if len(content.encode("utf-8")) > config.MAX_SIZE:
         return
-    conn = _connect()
     try:
-        # dedup: remove idêntico para que o re-copiado suba ao topo
-        conn.execute("DELETE FROM entries WHERE content = ?", (content,))
-        conn.execute(
-            "INSERT INTO entries (content, created_at) VALUES (?, ?)",
-            (content, datetime.now(timezone.utc).isoformat()),
-        )
-        # count cap: mantém os LIMIT mais recentes (por id)
-        conn.execute(
-            "DELETE FROM entries WHERE id NOT IN ("
-            "SELECT id FROM entries ORDER BY id DESC LIMIT ?)",
-            (config.LIMIT,),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+        conn = _connect()
+        try:
+            # dedup: remove idêntico para que o re-copiado suba ao topo
+            conn.execute("DELETE FROM entries WHERE content = ?", (content,))
+            conn.execute(
+                "INSERT INTO entries (content, created_at) VALUES (?, ?)",
+                (content, datetime.now(timezone.utc).isoformat()),
+            )
+            # count cap: mantém os LIMIT mais recentes (por id)
+            conn.execute(
+                "DELETE FROM entries WHERE id NOT IN ("
+                "SELECT id FROM entries ORDER BY id DESC LIMIT ?)",
+                (config.LIMIT,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        import sys
+        print(f"clip-history: erro ao gravar: {e}", file=sys.stderr)
+        return
 
 
 def list(limit: int | None = None) -> list[Entry]:

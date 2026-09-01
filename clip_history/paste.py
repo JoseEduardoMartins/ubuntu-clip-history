@@ -25,7 +25,11 @@ def paste(content: str, delay: float = 0.12) -> None:
 
     Cai em copy-only (com notificação) se o ydotool não existir ou falhar.
     """
-    copy(content)
+    try:
+        copy(content)
+    except (subprocess.CalledProcessError, OSError, FileNotFoundError):
+        _notify("Não foi possível copiar (wl-clipboard instalado?)")
+        return
     if not _ydotool_available():
         _notify("Copiado — aperte Ctrl+V para colar")
         return
