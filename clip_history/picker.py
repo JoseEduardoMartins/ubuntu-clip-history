@@ -23,14 +23,24 @@ class PickerWindow(Adw.ApplicationWindow):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.set_content(box)
 
-        self.search = Gtk.SearchEntry()
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        header.set_margin_top(8)
+        header.set_margin_bottom(8)
+        header.set_margin_start(8)
+        header.set_margin_end(8)
+
+        self.search = Gtk.SearchEntry(hexpand=True)
         self.search.set_placeholder_text("Buscar…")
-        self.search.set_margin_top(8)
-        self.search.set_margin_bottom(8)
-        self.search.set_margin_start(8)
-        self.search.set_margin_end(8)
         self.search.connect("search-changed", self._on_search)
-        box.append(self.search)
+        header.append(self.search)
+
+        clear_btn = Gtk.Button(icon_name="user-trash-symbolic")
+        clear_btn.set_tooltip_text("Limpar tudo")
+        clear_btn.add_css_class("flat")
+        clear_btn.set_valign(Gtk.Align.CENTER)
+        clear_btn.connect("clicked", self._on_clear_clicked)
+        header.append(clear_btn)
+        box.append(header)
 
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
@@ -58,16 +68,31 @@ class PickerWindow(Adw.ApplicationWindow):
         self.visible_entries = [e for e in self.entries if q in e.content.lower()]
         for i, entry in enumerate(self.visible_entries):
             row = Gtk.ListBoxRow()
-            label = Gtk.Label(xalign=0)
+            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            label = Gtk.Label(xalign=0, hexpand=True)
             prefix = f"{i + 1}. " if i < 9 else ""
             label.set_text(prefix + _preview(entry.content))
             label.set_margin_top(6)
             label.set_margin_bottom(6)
             label.set_margin_start(10)
-            label.set_margin_end(10)
-            row.set_child(label)
+            label.set_margin_end(6)
+            hbox.append(label)
+
+            del_btn = Gtk.Button(icon_name="window-close-symbolic")
+            del_btn.set_tooltip_text("Excluir este item")
+            del_btn.add_css_class("flat")
+            del_btn.set_valign(Gtk.Align.CENTER)
+            del_btn.set_margin_end(6)
+            del_btn.connect("clicked", self._on_delete_clicked, entry)
+            hbox.append(del_btn)
+
+            row.set_child(hbox)
             self.listbox.append(row)
         self._select(0)
+
+    def _refresh(self):
+        self.entries = storage.list()
+        self._populate(self.search.get_text())
 
     def _select(self, i):
         if not self.visible_entries:
@@ -86,11 +111,39 @@ class PickerWindow(Adw.ApplicationWindow):
             self.close()
             paste.paste(content)
 
+    def _delete_entry(self, entry):
+        storage.delete(entry.id)
+        self._refresh()
+
     def _on_search(self, _entry):
         self._populate(self.search.get_text())
 
     def _on_row_activated(self, _listbox, row):
         self._choose(row.get_index())
+
+    def _on_delete_clicked(self, _button, entry):
+        self._delete_entry(entry)
+
+    def _on_clear_clicked(self, _button):
+        dialog = Adw.MessageDialog.new(
+            self,
+            "Limpar todo o histórico?",
+            "Isso remove todos os itens salvos. Não dá para desfazer.",
+        )
+        dialog.add_response("cancel", "Cancelar")
+        dialog.add_response("clear", "Limpar")
+        dialog.set_response_appearance(
+            "clear", Adw.ResponseAppearance.DESTRUCTIVE
+        )
+        dialog.set_default_response("cancel")
+        dialog.set_close_response("cancel")
+        dialog.connect("response", self._on_clear_response)
+        dialog.present()
+
+    def _on_clear_response(self, _dialog, response):
+        if response == "clear":
+            storage.clear()
+            self._refresh()
 
     def _on_key(self, _controller, keyval, _keycode, state):
         if keyval == Gdk.KEY_Escape:
@@ -98,6 +151,10 @@ class PickerWindow(Adw.ApplicationWindow):
             return True
         if keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
             self._choose(self.index)
+            return True
+        if keyval in (Gdk.KEY_Delete, Gdk.KEY_KP_Delete):
+            if 0 <= self.index < len(self.visible_entries):
+                self._delete_entry(self.visible_entries[self.index])
             return True
         if keyval == Gdk.KEY_Down:
             self._select(self.index + 1)

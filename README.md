@@ -62,6 +62,8 @@ para que o picker feche e o foco volte ao app anterior antes da colagem.
 - Copie textos normalmente (`Ctrl+C`).
 - `Super+V` abre o histórico. Digite para filtrar, `↑`/`↓` para navegar,
   `Enter` para colar, `Esc` para fechar, `Alt+1..9` para escolha rápida.
+- **Excluir um item:** botão `×` na linha, ou tecla `Delete` no item selecionado.
+- **Excluir todos:** botão 🗑 (topo, ao lado da busca), com confirmação.
 
 ## Comandos
 
