@@ -58,8 +58,13 @@ def _gtk_available() -> bool:
 
 def check_deps() -> list:
     missing = []
-    if shutil.which("wl-paste") is None or shutil.which("wl-copy") is None:
-        missing.append("wl-clipboard (wl-paste/wl-copy)")
+    if shutil.which("wl-copy") is None:
+        missing.append("wl-clipboard (wl-copy — usado para copiar/colar)")
+    if shutil.which("gpaste-client") is None:
+        missing.append(
+            "GPaste (gpaste-2 — daemon que alimenta o histórico via D-Bus "
+            "sem roubar o foco do teclado)"
+        )
     if shutil.which("ydotool") is None:
         missing.append("ydotool (auto-paste; sem ele o app usa copy-only)")
     if not _gtk_available():
@@ -193,7 +198,11 @@ def run() -> int:
             print(f"  • {item}")
         print("\nInstale com:")
         print("  sudo apt install wl-clipboard python3-gi "
-              "gir1.2-gtk-4.0 gir1.2-adw-1 ydotool")
+              "gir1.2-gtk-4.0 gir1.2-adw-1 ydotool gpaste-2")
+        print("  (o GPaste roda o daemon do histórico dentro do gnome-shell, "
+              "sem roubar foco — habilite-o com "
+              "'gnome-extensions enable GPaste@gnome-shell-extensions.gnome.org'"
+              " e relogue se necessário)")
 
     print("\nAuto-paste (opcional — sem ele o app usa copy-only + Ctrl+V):")
     if not shutil.which("ydotoold"):

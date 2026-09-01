@@ -1,6 +1,10 @@
 [Unit]
 Description=clip-history clipboard watcher
-After=graphical-session.target
+# O watcher escuta o daemon do GPaste via D-Bus (org.gnome.GPaste); ele é
+# D-Bus-activatable, mas pedimos a ordem explicitamente para evitar perder
+# cópias feitas nos primeiros segundos da sessão.
+After=graphical-session.target org.gnome.GPaste.service
+Wants=org.gnome.GPaste.service
 PartOf=graphical-session.target
 
 [Service]

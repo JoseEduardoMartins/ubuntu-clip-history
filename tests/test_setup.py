@@ -11,6 +11,12 @@ def test_check_deps_reports_missing(monkeypatch):
     assert "ydotool" in joined
 
 
+def test_check_deps_reports_missing_gpaste(monkeypatch):
+    monkeypatch.setattr(setup.shutil, "which", lambda name: None)
+    joined = " ".join(setup.check_deps())
+    assert "GPaste" in joined
+
+
 def test_check_deps_all_present(monkeypatch):
     monkeypatch.setattr(setup.shutil, "which", lambda name: "/usr/bin/" + name)
 
