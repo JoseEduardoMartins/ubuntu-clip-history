@@ -5,6 +5,8 @@ Histórico de área de transferência estilo `Win+V`, para **Ubuntu / Wayland / 
 Grava todo texto copiado (`Ctrl+C`) e, ao apertar `Super+V`, abre um picker
 onde você escolhe qualquer item anterior para colar.
 
+> Visão de arquitetura (módulos, fluxo de dados, testes): [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Requisitos
 
 - Ubuntu com Wayland + GNOME
