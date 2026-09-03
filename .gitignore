@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+
+# schema compilado (gerado no install/empacotamento)
+schemas/gschemas.compiled
+extension/schemas/gschemas.compiled
