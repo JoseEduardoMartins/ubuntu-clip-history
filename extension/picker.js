@@ -8,6 +8,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 
 import { preview } from './text.js';
+import { filterEntries, clampSelected, nextSelected, keyAction } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
 
@@ -123,12 +124,8 @@ export const Picker = GObject.registerClass({
     }
 
     _applyFilter() {
-        const q = this._search.get_text().trim().toLowerCase();
-        this._entries = q
-            ? this._all.filter(e => e.content.toLowerCase().includes(q))
-            : this._all.slice();
-        if (this._selected >= this._entries.length)
-            this._selected = Math.max(0, this._entries.length - 1);
+        this._entries = filterEntries(this._all, this._search.get_text());
+        this._selected = clampSelected(this._selected, this._entries.length);
         this._render();
     }
 
@@ -196,49 +193,55 @@ export const Picker = GObject.registerClass({
     _move(delta) {
         if (this._entries.length === 0)
             return;
-        this._selected = (this._selected + delta + this._entries.length) % this._entries.length;
+        this._selected = nextSelected(this._selected, delta, this._entries.length);
         this._render();
     }
 
     _onKeyPress(event) {
-        const symbol = event.get_key_symbol();
-        const state = event.get_state();
-        const ctrl = (state & Clutter.ModifierType.CONTROL_MASK) !== 0;
-        const alt = (state & Clutter.ModifierType.MOD1_MASK) !== 0;
+        const action = keyAction(event.get_key_symbol(), event.get_state(), KEY_MAP);
 
-        switch (symbol) {
-        case Clutter.KEY_Escape:
+        switch (action.type) {
+        case 'dismiss':
             this.emit('dismissed');
             return Clutter.EVENT_STOP;
-        case Clutter.KEY_Return:
-        case Clutter.KEY_KP_Enter:
+        case 'choose-selected':
             this._choose(this._selected);
             return Clutter.EVENT_STOP;
-        case Clutter.KEY_Up:
-            this._move(-1);
+        case 'choose-index':
+            this._choose(action.index);
             return Clutter.EVENT_STOP;
-        case Clutter.KEY_Down:
-            this._move(+1);
+        case 'move':
+            this._move(action.delta);
             return Clutter.EVENT_STOP;
-        case Clutter.KEY_Delete:
+        case 'delete-selected':
             if (this._entries[this._selected]) {
                 const e = this._entries[this._selected];
                 this.emit('deleted', e.uuid ?? '', e.content);
             }
             return Clutter.EVENT_STOP;
-        }
-
-        if (ctrl && (symbol === Clutter.KEY_p || symbol === Clutter.KEY_P)) {
+        case 'pin-selected':
             if (this._entries[this._selected])
                 this.emit('pin-toggled', this._entries[this._selected].content);
             return Clutter.EVENT_STOP;
+        default:
+            return Clutter.EVENT_PROPAGATE; // deixa digitar na busca
         }
-
-        if (alt && symbol >= Clutter.KEY_1 && symbol <= Clutter.KEY_9) {
-            this._choose(symbol - Clutter.KEY_1);
-            return Clutter.EVENT_STOP;
-        }
-
-        return Clutter.EVENT_PROPAGATE; // deixa digitar na busca
     }
 });
+
+// As constantes do Clutter que a lógica pura (keyAction) precisa. Mantê-las
+// juntas aqui deixa claro o contrato entre picker.js e pickerLogic.js.
+const KEY_MAP = {
+    Escape: Clutter.KEY_Escape,
+    Return: Clutter.KEY_Return,
+    KP_Enter: Clutter.KEY_KP_Enter,
+    Up: Clutter.KEY_Up,
+    Down: Clutter.KEY_Down,
+    Delete: Clutter.KEY_Delete,
+    p: Clutter.KEY_p,
+    P: Clutter.KEY_P,
+    KEY_1: Clutter.KEY_1,
+    KEY_9: Clutter.KEY_9,
+    CONTROL_MASK: Clutter.ModifierType.CONTROL_MASK,
+    MOD1_MASK: Clutter.ModifierType.MOD1_MASK,
+};

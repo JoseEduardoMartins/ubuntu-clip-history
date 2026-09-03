@@ -99,6 +99,42 @@ para que o picker feche e o foco volte ao app anterior antes da colagem.
 | `clip-history show`   | Abre o picker (ligado ao Super+V) |
 | `clip-history setup`  | Instala serviço + atalho + checa deps |
 
+## Testes e CI
+
+A lógica pura da extensão (sem `St`/`Clutter`) vive em módulos isolados —
+`pins.js`, `position.js`, `text.js`, `pickerLogic.js` — e é testada com o
+interpretador `gjs`. Rode tudo localmente:
+
+```bash
+bash extension/test/run.sh
+```
+
+O runner cobre `testPins`, `testPosition`, `testText` e `testPickerLogic`
+(filtro, navegação circular e mapa de teclas do picker). Fica **de fora** o
+`extension/test/smokeGpasteRead.js`, que lê o histórico do daemon GPaste e só
+funciona numa sessão real — rode-o à mão quando quiser um smoke do D-Bus:
+
+```bash
+gjs -m extension/test/smokeGpasteRead.js
+```
+
+O restante (`extension.js`, `picker.js`, `prefs.js`) é acoplado ao GNOME Shell
+e não roda fora de uma sessão; o CI valida a sintaxe desses arquivos, mas o
+comportamento deles é verificado manualmente (`Super+V`).
+
+**CI** (`.github/workflows/ci.yml`, em push na `main` e em todo PR): roda o
+`run.sh`, valida o schema (`glib-compile-schemas --strict`), o `metadata.json`
+e a sintaxe de todos os `.js`.
+
+**Release** (`.github/workflows/release.yml`, ao empurrar uma tag `v*`):
+reexecuta as checagens, empacota `extension/` num
+`clip-history@joseeduardomartins.com.zip` (com o schema compilado, sem os
+testes) e cria um GitHub Release com o zip anexado. Para cortar uma versão:
+
+```bash
+git tag v2 && git push origin v2
+```
+
 ## Limites (v1)
 
 Só texto; últimos 100 itens; dedup; ignora textos > 100 KB. Imagens,

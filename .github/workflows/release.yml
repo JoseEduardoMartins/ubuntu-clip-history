@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # necessário para criar o GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar gjs e ferramentas do GLib
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gjs libglib2.0-bin zip
+
+      # Reaproveita as mesmas checagens do CI antes de empacotar.
+      - name: Testes de lógica (gjs)
+        run: bash extension/test/run.sh
+
+      - name: Validar o schema de configurações
+        run: glib-compile-schemas --strict --dry-run extension/schemas
+
+      - name: Validar metadata.json
+        run: node .github/scripts/check-metadata.mjs
+
+      - name: Empacotar a extensão
+        id: pack
+        run: |
+          UUID=$(node -e "process.stdout.write(require('./extension/metadata.json').uuid)")
+          ZIP="$UUID.zip"
+          # Compila o schema para dentro do pacote (o zip precisa do gschemas.compiled).
+          glib-compile-schemas extension/schemas
+          # Zipa o conteúdo de extension/ na raiz do zip, como o gnome-extensions
+          # espera. Exclui os testes e arquivos ocultos — não vão no pacote.
+          ( cd extension && zip -r -q "../$ZIP" . -x '*/.*' -x 'test/*' )
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "Empacotado: $ZIP"
+          unzip -l "$ZIP"
+
+      - name: Criar o GitHub Release e anexar o zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            "${{ steps.pack.outputs.zip }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes
