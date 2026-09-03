@@ -2,7 +2,7 @@
   "uuid": "clip-history@joseeduardomartins.com",
   "name": "Clip History",
   "description": "Histórico de área de transferência estilo Win+V, sobre o GPaste. Abre com Super+V perto do cursor de texto.",
-  "shell-version": ["46"],
+  "shell-version": ["46", "47", "48"],
   "settings-schema": "org.gnome.shell.extensions.clip-history",
   "url": "https://github.com/JoseEduardoMartins/ubuntu-clip-history",
   "version": 1
