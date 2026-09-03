@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.clip-history"
+          path="/org/gnome/shell/extensions/clip-history/">
+    <key type="as" name="toggle-clip-history">
+      <default><![CDATA[['<Super>v']]]></default>
+      <summary>Abrir o histórico da área de transferência</summary>
+      <description>Atalho que abre/fecha o picker do clip-history.</description>
+    </key>
+  </schema>
+</schemalist>
