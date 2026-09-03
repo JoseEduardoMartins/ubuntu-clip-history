@@ -1,0 +1,78 @@
+.clip-history {
+    background-color: rgba(30, 30, 34, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 10px;
+    spacing: 8px;
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.45);
+}
+
+.clip-history-header {
+    spacing: 8px;
+    padding: 2px 4px 6px 6px;
+}
+
+.clip-history-title {
+    font-weight: bold;
+    font-size: 12pt;
+    color: #ffffff;
+}
+
+.clip-history-search {
+    margin: 2px 2px 8px 2px;
+}
+
+.clip-history-scroll {
+    max-height: 420px;
+}
+
+.clip-history-list {
+    spacing: 2px;
+}
+
+.clip-history-row {
+    padding: 7px 8px;
+    border-radius: 8px;
+    spacing: 6px;
+}
+
+.clip-history-row:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.clip-history-row.selected {
+    background-color: rgba(120, 160, 255, 0.22);
+}
+
+.clip-history-row-label {
+    color: #eaeaea;
+}
+
+.clip-history-empty {
+    padding: 18px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.clip-history-icon-button {
+    padding: 4px;
+    border-radius: 6px;
+    color: #eaeaea;
+}
+
+.clip-history-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.clip-history-footer {
+    padding: 8px 4px 2px 4px;
+}
+
+.clip-history-clear {
+    padding: 6px;
+    border-radius: 8px;
+    color: #ff8a8a;
+}
+
+.clip-history-clear:hover {
+    background-color: rgba(255, 80, 80, 0.14);
+}
