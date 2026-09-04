@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.0.0...v1.1.0) (2026-09-04)
+
+
+### Features
+
+* **picker:** mascara itens de senha e faz debounce da busca ([b494a5f](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/b494a5fcf80beca0e1138193aae5c4a10dd173f1)), closes [#2](https://github.com/JoseEduardoMartins/ubuntu-clip-history/issues/2) [#6](https://github.com/JoseEduardoMartins/ubuntu-clip-history/issues/6)
+
 # 1.0.0 (2026-09-04)
 
 
