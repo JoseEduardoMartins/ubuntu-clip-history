@@ -17,10 +17,16 @@ async function main() {
         print(`itens: ${hist.length}`);
         if (hist.length > 0) {
             const first = hist[0];
-            const ok = typeof first.uuid === 'string' && typeof first.content === 'string';
-            print(`topo: uuid=${first.uuid.slice(0, 8)}… content(${first.content.length} chars)`);
+            const ok = typeof first.uuid === 'string' && typeof first.content === 'string' &&
+                typeof first.kind === 'string';
+            print(`topo: uuid=${first.uuid.slice(0, 8)}… kind=${first.kind} content(${first.content.length} chars)`);
             if (!ok) { print('FAIL - shape inesperado'); System.exit(1); }
         }
+        // Lista os itens de imagem detectados (com o caminho do PNG).
+        const images = hist.filter(e => e.kind === 'image');
+        print(`imagens: ${images.length}`);
+        for (const img of images)
+            print(`  img uuid=${img.uuid.slice(0, 8)}… path=${img.imagePath}`);
         gp.destroy();
         print('ok - leitura do GPaste funcionou');
     } catch (e) {

@@ -12,6 +12,11 @@
     padding: 2px 4px 6px 6px;
 }
 
+.clip-history-thumb {
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
 .clip-history-title {
     font-weight: bold;
     font-size: 12pt;

@@ -90,7 +90,7 @@ export default class ClipHistoryExtension extends Extension {
         this._caret = this._captureCaret();
 
         const picker = new Picker();
-        picker.connect('chosen', (_p, content) => this._onChosen(content));
+        picker.connect('chosen', (_p, uuid, content) => this._onChosen(uuid, content));
         picker.connect('pin-toggled', (_p, content) => this._onPinToggled(content));
         picker.connect('deleted', (_p, uuid, content) => this._onDeleted(uuid, content));
         picker.connect('clear-all', () => this._onClearAll());
@@ -181,14 +181,20 @@ export default class ClipHistoryExtension extends Extension {
         this._picker.set_position(x, y);
     }
 
-    async _onChosen(content) {
-        // Espera o Add concluir (clipboard já dono) antes de fechar e injetar
+    async _onChosen(uuid, content) {
+        // Espera a recópia concluir (clipboard já dono) antes de fechar e injetar
         // o Ctrl+V — senão a colagem correria contra o set do clipboard.
+        // Select(uuid) recopia qualquer elemento (texto ou imagem). Sem uuid
+        // (pino de texto que já saiu do histórico do GPaste), reAdd por texto.
         try {
-            if (this._gpaste)
-                await this._gpaste.add(content);   // vira o clipboard + sobe ao topo
+            if (this._gpaste) {
+                if (uuid)
+                    await this._gpaste.select(uuid);
+                else
+                    await this._gpaste.add(content);
+            }
         } catch (e) {
-            logError(e, 'clip-history: falha no Add do GPaste');
+            logError(e, 'clip-history: falha ao recopiar item do GPaste');
         }
         this._close();
         this._schedulePaste();
