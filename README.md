@@ -79,16 +79,20 @@ O atalho `Super+V` é configurável na tela de preferências da extensão
 
 A lógica pura da extensão (sem `St`/`Clutter`) vive em módulos isolados —
 `pins.js`, `position.js`, `text.js`, `pickerLogic.js` — e é testada com o
-interpretador `gjs`. Rode tudo localmente:
+interpretador `gjs`. O `gpaste.js` também entra na suíte: ele aceita uma camada
+D-Bus **injetada**, então dá pra testar cache/roteamento sem o daemon vivo. Rode
+tudo localmente:
 
 ```bash
 bash extension/test/run.sh
 ```
 
-O runner cobre `testPins`, `testPosition`, `testText` e `testPickerLogic`
-(filtro, navegação circular e mapa de teclas do picker). Fica **de fora** o
-`extension/test/smokeGpasteRead.js`, que lê o histórico do daemon GPaste e só
-funciona numa sessão real — rode-o à mão quando quiser um smoke do D-Bus:
+O runner cobre `testPins`, `testPosition`, `testText`, `testPickerLogic` (filtro,
+navegação circular e mapa de teclas) e `testGpaste` (cache do `getMeta`, poda do
+`getHistory`, degradação sem `GetElementKind`, roteamento das mutações). Todos
+compartilham o mini-harness `extension/test/assert.js`. Fica **de fora** o
+`extension/test/smokeGpasteRead.js`, que lê o histórico do daemon GPaste real e
+só funciona numa sessão viva — rode-o à mão quando quiser um smoke do D-Bus:
 
 ```bash
 gjs -m extension/test/smokeGpasteRead.js

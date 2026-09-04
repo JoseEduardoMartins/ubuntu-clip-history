@@ -1,18 +1,12 @@
 // Testes de pins.js. Rodar: gjs -m extension/test/testPins.js
-import System from 'system';
 import GLib from 'gi://GLib';
-import { mergeEntries, addPin, removePin, isPinned, loadPins, savePins } from '../pins.js';
+import { check, eq, section, report } from './assert.js';
+import { mergeEntries, addPin, removePin, isPinned, loadPins, savePins, pinsPath } from '../pins.js';
 
-let failures = 0;
-function check(name, cond) {
-    print(cond ? `ok   - ${name}` : `FAIL - ${name}`);
-    if (!cond) failures++;
-}
-function eq(name, got, want) {
-    check(`${name} (got ${JSON.stringify(got)}, want ${JSON.stringify(want)})`, got === want);
-}
+// --- mergeEntries --------------------------------------------------------
+section('mergeEntries');
 
-// mergeEntries: pinos no topo (na ordem dos pinos), histórico deduplicado contra os pinos.
+// pinos no topo (na ordem dos pinos), histórico deduplicado contra os pinos.
 {
     const pins = [{ content: 'p1' }, { content: 'p2' }];
     const history = [
@@ -34,7 +28,7 @@ function eq(name, got, want) {
     eq('p1 aparece 1x', m.filter(e => e.content === 'p1').length, 1);
 }
 
-// mergeEntries: propaga kind/imagePath do histórico; pinos são sempre texto.
+// propaga kind/imagePath do histórico; pinos são sempre texto.
 {
     const pins = [{ content: 'p1' }];
     const history = [
@@ -58,22 +52,34 @@ function eq(name, got, want) {
     check('hist imagem não fixada', img.pinned === false);
 }
 
-// mergeEntries: histórico sem kind/imagePath cai em text/null (defensivo).
+// histórico sem kind/imagePath cai em text/null (defensivo).
 {
     const m = mergeEntries([], [{ uuid: 'u1', content: 'h' }]);
     eq('default kind', m[0].kind, 'text');
     eq('default imagePath', m[0].imagePath, null);
 }
 
-// addPin: prepend + dedup.
+// entradas vazias -> lista vazia.
+{
+    eq('merge vazio+vazio', mergeEntries([], []).length, 0);
+    eq('merge só pinos', mergeEntries([{ content: 'p' }], []).length, 1);
+    eq('merge só histórico', mergeEntries([], [{ uuid: 'u', content: 'h' }]).length, 1);
+}
+
+// --- addPin / removePin / isPinned ---------------------------------------
+section('addPin / removePin / isPinned');
+
+// addPin: prepend + dedup + created_at.
 {
     const pins = [{ content: 'a' }];
     const p2 = addPin(pins, 'b');
     eq('addPin novo prepend', p2[0].content, 'b');
     eq('addPin len', p2.length, 2);
+    check('addPin gera created_at ISO', typeof p2[0].created_at === 'string' && !Number.isNaN(Date.parse(p2[0].created_at)));
     const p3 = addPin(p2, 'a'); // já existe -> sem duplicar
     eq('addPin dedup len', p3.length, 2);
     check('addPin não muta original', pins.length === 1);
+    check('addPin dedup devolve cópia', p3 !== p2);
 }
 
 // removePin.
@@ -82,6 +88,10 @@ function eq(name, got, want) {
     const p = removePin(pins, 'a');
     eq('removePin len', p.length, 1);
     eq('removePin resto', p[0].content, 'b');
+    // remover inexistente -> cópia inalterada.
+    const q = removePin(pins, 'zzz');
+    eq('removePin inexistente len', q.length, 2);
+    check('removePin inexistente é cópia', q !== pins);
 }
 
 // isPinned.
@@ -89,9 +99,16 @@ function eq(name, got, want) {
     const pins = [{ content: 'x' }];
     check('isPinned true', isPinned(pins, 'x') === true);
     check('isPinned false', isPinned(pins, 'y') === false);
+    check('isPinned lista vazia', isPinned([], 'x') === false);
 }
 
-// Round-trip Gio: salvar e carregar.
+// --- Persistência (Gio) --------------------------------------------------
+section('persistência');
+
+// pinsPath aponta pro data dir do usuário.
+check('pinsPath termina em clip-history/pins.json', pinsPath().endsWith('/clip-history/pins.json'));
+
+// Round-trip: salvar e carregar (com UTF-8).
 {
     const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-pins-${Date.now()}.json`]);
     const pins = [{ content: 'linha 1', created_at: '2026-09-01' }, { content: 'çãé', created_at: '2026-09-01' }];
@@ -103,15 +120,39 @@ function eq(name, got, want) {
     GLib.unlink(path);
 }
 
-// loadPins de arquivo inexistente -> lista vazia (sem erro).
+// savePins cria os diretórios-pai que não existem.
 {
-    const loaded = loadPins('/nao/existe/pins.json');
-    eq('load inexistente vazio', loaded.length, 0);
+    const base = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-${Date.now()}`]);
+    const path = GLib.build_filenamev([base, 'sub', 'pins.json']);
+    savePins(path, [{ content: 'x', created_at: '2026-09-01' }]);
+    eq('salva em dir aninhado inexistente', loadPins(path).length, 1);
+    GLib.unlink(path);
+    GLib.rmdir(GLib.build_filenamev([base, 'sub']));
+    GLib.rmdir(base);
 }
 
-if (failures > 0) {
-    print(`\n${failures} teste(s) falharam`);
-    System.exit(1);
-} else {
-    print('\ntodos os testes passaram');
+// loadPins de arquivo inexistente -> lista vazia (sem erro).
+eq('load inexistente vazio', loadPins('/nao/existe/pins.json').length, 0);
+
+// loadPins de JSON inválido -> lista vazia (catch).
+{
+    const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-bad-${Date.now()}.json`]);
+    GLib.file_set_contents(path, '{ isto não é json }');
+    eq('load JSON inválido vazio', loadPins(path).length, 0);
+    GLib.unlink(path);
 }
+
+// loadPins de JSON válido mas não-array -> lista vazia (Array.isArray).
+{
+    const pObj = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-obj-${Date.now()}.json`]);
+    GLib.file_set_contents(pObj, '{"content":"x"}');
+    eq('load objeto (não-array) vazio', loadPins(pObj).length, 0);
+    GLib.unlink(pObj);
+
+    const pNum = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-num-${Date.now()}.json`]);
+    GLib.file_set_contents(pNum, '42');
+    eq('load número (não-array) vazio', loadPins(pNum).length, 0);
+    GLib.unlink(pNum);
+}
+
+report();

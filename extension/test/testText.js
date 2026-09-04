@@ -1,20 +1,24 @@
 // Testes de text.js. Rodar: gjs -m extension/test/testText.js
-import System from 'system';
+import { eq, report } from './assert.js';
 import { preview } from '../text.js';
-
-let failures = 0;
-function eq(name, got, want) {
-    const ok = got === want;
-    print(ok ? `ok   - ${name}` : `FAIL - ${name} (got ${JSON.stringify(got)}, want ${JSON.stringify(want)})`);
-    if (!ok) failures++;
-}
 
 eq('colapsa espaços internos', preview('a   b\t c'), 'a b c');
 eq('colapsa quebras de linha', preview('linha1\nlinha2\n\nlinha3'), 'linha1 linha2 linha3');
 eq('apara pontas', preview('   oi   '), 'oi');
 eq('vazio vira vazio', preview(''), '');
-eq('corta em 500 chars', preview('x'.repeat(600)).length, 500);
+eq('só espaços vira vazio', preview('  \n\t  '), '');
 eq('mantém curto igual', preview('hello world'), 'hello world');
 
-if (failures > 0) { print(`\n${failures} falhou(ram)`); System.exit(1); }
-else print('\ntodos os testes passaram');
+// --- Limite de 500 (corte) ---
+eq('exatamente 500 não corta', preview('x'.repeat(500)).length, 500);
+eq('501 corta pra 500', preview('x'.repeat(501)).length, 500);
+eq('corta em 500 chars', preview('x'.repeat(600)).length, 500);
+// O colapso de espaços acontece ANTES do corte: 600 espaços viram '' (trim).
+eq('espaços não contam pro limite', preview(' '.repeat(600)), '');
+
+// --- Coerção de não-string (String() defensivo) ---
+eq('número é coagido', preview(42), '42');
+eq('null é coagido', preview(null), 'null');
+eq('undefined é coagido', preview(undefined), 'undefined');
+
+report();
