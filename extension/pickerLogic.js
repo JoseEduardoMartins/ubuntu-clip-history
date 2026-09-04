@@ -40,7 +40,7 @@ export function nextSelected(selected, delta, length) {
 //   { type: 'choose-selected' }
 //   { type: 'choose-index', index }   // Alt+1..9 (0-based)
 //   { type: 'move', delta }           // -1 / +1
-//   { type: 'delete-selected' }
+//   { type: 'delete-selected' }       // Ctrl+Delete
 //   { type: 'pin-selected' }
 //   { type: 'passthrough' }           // deixa digitar na busca
 export function keyAction(symbol, state, KEYS) {
@@ -57,9 +57,13 @@ export function keyAction(symbol, state, KEYS) {
         return { type: 'move', delta: -1 };
     case KEYS.Down:
         return { type: 'move', delta: +1 };
-    case KEYS.Delete:
-        return { type: 'delete-selected' };
     }
+
+    // Ctrl+Delete apaga o item selecionado. Delete sozinho cai em passthrough:
+    // como o foco fica no St.Entry da busca, o Delete "puro" edita o texto —
+    // exigir Ctrl evita a ambiguidade de apagar item vs. apagar caractere.
+    if (ctrl && symbol === KEYS.Delete)
+        return { type: 'delete-selected' };
 
     if (ctrl && (symbol === KEYS.p || symbol === KEYS.P))
         return { type: 'pin-selected' };

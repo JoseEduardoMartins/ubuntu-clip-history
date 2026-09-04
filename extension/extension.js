@@ -30,6 +30,9 @@ export default class ClipHistoryExtension extends Extension {
         this._grab = null;
         this._caret = null;
         this._pasteTimeout = 0;
+        // Muda a cada open/close; invalida loads assíncronos em voo (evita que
+        // um getHistory lento escreva num picker que já foi fechado/reaberto).
+        this._loadToken = 0;
 
         // GPaste isolado num try/catch: se o daemon não subir, o enable() ainda
         // termina (o atalho registra) em vez de deixar a extensão em ERROR — que
@@ -50,9 +53,10 @@ export default class ClipHistoryExtension extends Extension {
             GLib.source_remove(this._pasteTimeout);
             this._pasteTimeout = 0;
         }
-        if (this._vdevice) {
-            this._vdevice = null;
-        }
+        // O Clutter não expõe um "destroy" para o virtual device; largar a
+        // nossa referência (=> null) deixa o seat liberá-lo via GC. Recriado
+        // sob demanda no próximo _sendCtrlV.
+        this._vdevice = null;
         if (this._gpaste) {
             this._gpaste.destroy();
             this._gpaste = null;
@@ -84,6 +88,7 @@ export default class ClipHistoryExtension extends Extension {
     }
 
     _open() {
+        this._loadToken++;
         // Captura o caret ANTES de qualquer coisa: assim que o popup pega o
         // foco (pushModal/grabFocus abaixo), o input method passa a apontar pro
         // nosso St.Entry e o caret do app original se perde.
@@ -109,6 +114,7 @@ export default class ClipHistoryExtension extends Extension {
     _close() {
         if (!this._picker)
             return;
+        this._loadToken++;   // descarta qualquer load assíncrono ainda em voo
         if (this._grab) {
             Main.popModal(this._grab);
             this._grab = null;
@@ -140,6 +146,7 @@ export default class ClipHistoryExtension extends Extension {
     async _loadEntries(position = false) {
         if (!this._picker)
             return;
+        const token = this._loadToken;
         // Tenta (re)conectar caso o GPaste não estivesse pronto no enable().
         this._connectGPaste();
         let history = [];
@@ -148,9 +155,16 @@ export default class ClipHistoryExtension extends Extension {
         } catch (e) {
             logError(e, 'clip-history: falha ao ler o histórico do GPaste');
         }
-        if (!this._picker) // fechou enquanto carregava
+        // Fechou/reabriu enquanto carregava? Descarta (o picker pode ser outro).
+        if (!this._picker || token !== this._loadToken)
             return;
-        this._picker.setEntries(mergeEntries(this._pins, history));
+        // Resolver lazy de metadados por linha: o picker chama só nas linhas que
+        // renderiza, e o gpaste cacheia por uuid. Sem daemon, degrada pra texto.
+        this._picker.setEntries(mergeEntries(this._pins, history), {
+            resolveMeta: uuid => this._gpaste
+                ? this._gpaste.getMeta(uuid)
+                : Promise.resolve({ kind: 'text', imagePath: null }),
+        });
         if (position)
             this._position();
     }

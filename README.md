@@ -68,7 +68,8 @@ não houver caret disponível, cai no canto inferior direito.
 - **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
   Só texto é fixável — imagens não.
-- **Excluir um item:** botão `×` na linha, ou tecla `Delete` no item selecionado.
+- **Excluir um item:** botão `×` na linha, ou `Ctrl+Delete` no item selecionado
+  (o `Delete` sozinho edita o texto da busca).
 - **Excluir todos:** botão 🗑 (topo, ao lado da busca), com confirmação.
 
 O atalho `Super+V` é configurável na tela de preferências da extensão

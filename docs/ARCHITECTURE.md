@@ -30,7 +30,7 @@ existe para tornar testável o que carrega a complexidade real.
 | Arquivo | Papel | Acoplamento |
 |---|---|---|
 | `extension.js` | Ciclo de vida (`enable`/`disable`), atalho, captura do caret, orquestração dos handlers, auto-paste via device virtual | Shell (Meta, Shell, Clutter, Main) |
-| `gpaste.js` | Wrapper fino do D-Bus do GPaste (**chamadas assíncronas**): `getHistory` (enriquecido com `kind`/`imagePath`), `add`, `select`, `delete`, `empty`, sinal `Update` | Gio/GLib |
+| `gpaste.js` | Wrapper fino do D-Bus do GPaste (**chamadas assíncronas**): `getHistory` (barato: uuid+content), `getMeta` (lazy por uuid: kind/imagePath, cacheado), `add`, `select`, `delete`, `empty`, sinal `Update` | Gio/GLib |
 | `picker.js` | UI do popup (`St`): header, busca, lista rolável (texto + **miniatura de imagem** via `TextureCache`), footer; navegação por teclado; emite sinais | St/Clutter/GObject/Gio |
 | `pickerLogic.js` | **Puro:** `filterEntries`, `clampSelected`, `nextSelected`, `keyAction` | nenhum |
 | `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`); **+ persistência** JSON via Gio | misto (lógica pura + Gio) |
@@ -54,8 +54,10 @@ ninguém (nem o Shell, nem `extension.js`).
    defensivo: qualquer ausência/erro cai em `null`.
 2. Cria o `Picker`, conecta os sinais e dá foco (`pushModal` + `grabFocus`).
 3. Lê o histórico **de forma assíncrona** (`_loadEntries`, não bloqueia o
-   compositor) via `gpaste.getHistory()` e funde com os pinos (`mergeEntries`)
-   → `picker.setEntries(...)`.
+   compositor) via `gpaste.getHistory()` (barato — só uuid+content) e funde com
+   os pinos (`mergeEntries`) → `picker.setEntries(..., { resolveMeta })`. As
+   linhas nascem como texto e cada uma vira imagem quando `getMeta(uuid)`
+   resolve (lazy por linha — evita a rajada de chamadas D-Bus no arranque).
 4. Só no primeiro load, `_position` ancora o popup: `pickMonitor` escolhe o
    monitor que contém o caret e `computePosition` decide x,y (abaixo do caret,
    ou acima se não couber; **sem caret válido → canto inferior direito**).
@@ -79,8 +81,11 @@ histórico; se o popup está aberto, `extension.js` recarrega as entradas.
 
 **Teclado** (no `picker.js`): `keyAction` traduz tecla+modificador numa ação
 abstrata (`dismiss`/`choose-selected`/`choose-index`/`move`/`delete-selected`/
-`pin-selected`/`passthrough`), e o `picker` executa. O mapa de constantes do
-Clutter fica no `KEY_MAP` do `picker.js` — é o contrato com a lógica pura.
+`pin-selected`/`passthrough`), e o `picker` executa. Excluir exige `Ctrl+Delete`
+(o `Delete` sozinho cai em `passthrough` para editar a busca, já que o foco fica
+no `St.Entry`). Navegar (`move`) só alterna a classe `selected` na linha e rola
+para a vista — não reconstrói a lista. O mapa de constantes do Clutter fica no
+`KEY_MAP` do `picker.js` — é o contrato com a lógica pura.
 
 ## Testes
 

@@ -28,6 +28,18 @@ jobs:
       - name: Validar metadata.json
         run: node .github/scripts/check-metadata.mjs
 
+      # Alinha metadata.json à tag: v2 -> version 2 (o GNOME exige inteiro).
+      # Só o artefato empacotado é ajustado; o metadata.json do repo fica como
+      # está. Tag fora do formato vN mantém a versão atual (sem falhar).
+      - name: Injetar a versão da tag no metadata.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+$ ]]; then
+            node -e "const fs=require('fs');const p='extension/metadata.json';const m=JSON.parse(fs.readFileSync(p));m.version=$VERSION;fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');console.log('metadata.version =', m.version);"
+          else
+            echo "Tag '${GITHUB_REF_NAME}' não é vN; mantendo a versão atual do metadata.json." >&2
+          fi
+
       - name: Empacotar a extensão
         id: pack
         run: |

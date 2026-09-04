@@ -55,34 +55,32 @@ export class GPaste {
         });
     }
 
-    // -> [{ uuid, content, kind, imagePath }], mesma ordem do GPaste (mais
-    // recente primeiro). `kind` é 'text'|'image'|... (minúsculo); `imagePath` é
-    // o caminho do PNG para imagens, senão null. O enriquecimento (kind/path) é
-    // feito em paralelo e cacheado por uuid; qualquer falha cai em 'text' —
-    // assim, num GPaste que não exponha esses métodos, degrada pro texto.
+    // -> [{ uuid, content }], mesma ordem do GPaste (mais recente primeiro).
+    // Leitura barata: NÃO enriquece kind/imagePath aqui (antes disparava uma
+    // chamada por uuid — até ~200 em paralelo com muitas imagens, antes da
+    // primeira pintura). O kind/imagePath é resolvido sob demanda, por linha,
+    // via getMeta(uuid). Aqui só podamos o cache do que saiu do histórico.
     async getHistory() {
         const res = await this._call('GetHistory', null);
         const [items] = res.deepUnpack(); // a(ss): [uuid, content]
 
-        const uuids = items.map(([uuid]) => uuid);
-        await Promise.all(uuids
-            .filter(uuid => !this._meta.has(uuid))
-            .map(uuid => this._loadMeta(uuid)));
-
         // Poda o cache: mantém só os uuids ainda presentes no histórico.
-        const live = new Set(uuids);
+        const live = new Set(items.map(([uuid]) => uuid));
         for (const uuid of this._meta.keys())
             if (!live.has(uuid))
                 this._meta.delete(uuid);
 
-        return items.map(([uuid, content]) => {
-            const meta = this._meta.get(uuid) ?? { kind: 'text', imagePath: null };
-            return { uuid, content, kind: meta.kind, imagePath: meta.imagePath };
-        });
+        return items.map(([uuid, content]) => ({ uuid, content }));
     }
 
     // Descobre kind (e, se imagem, o caminho do arquivo) de um uuid e cacheia.
-    async _loadMeta(uuid) {
+    // Chamado sob demanda pela UI (lazy, uma linha por vez); o kind de um item
+    // nunca muda, então o resultado é memorizado em `this._meta`. Qualquer falha
+    // cai em 'text' — num GPaste que não exponha GetElementKind, degrada pro
+    // texto. -> { kind, imagePath }.
+    async getMeta(uuid) {
+        if (this._meta.has(uuid))
+            return this._meta.get(uuid);
         let kind = 'text';
         let imagePath = null;
         try {
@@ -96,7 +94,9 @@ export class GPaste {
             kind = 'text';   // GPaste sem GetElementKind: trata como texto
             imagePath = null;
         }
-        this._meta.set(uuid, { kind, imagePath });
+        const meta = { kind, imagePath };
+        this._meta.set(uuid, meta);
+        return meta;
     }
 
     async _getRawElement(uuid) {

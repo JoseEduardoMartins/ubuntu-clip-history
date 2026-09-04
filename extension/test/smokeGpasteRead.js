@@ -17,13 +17,16 @@ async function main() {
         print(`itens: ${hist.length}`);
         if (hist.length > 0) {
             const first = hist[0];
-            const ok = typeof first.uuid === 'string' && typeof first.content === 'string' &&
-                typeof first.kind === 'string';
-            print(`topo: uuid=${first.uuid.slice(0, 8)}… kind=${first.kind} content(${first.content.length} chars)`);
+            const ok = typeof first.uuid === 'string' && typeof first.content === 'string';
+            print(`topo: uuid=${first.uuid.slice(0, 8)}… content(${first.content.length} chars)`);
             if (!ok) { print('FAIL - shape inesperado'); System.exit(1); }
         }
-        // Lista os itens de imagem detectados (com o caminho do PNG).
-        const images = hist.filter(e => e.kind === 'image');
+        // getHistory agora é barato (só uuid+content); kind/imagePath vêm do
+        // getMeta(uuid), resolvido por linha. Resolve todos aqui só pro smoke.
+        const metas = await Promise.all(hist.map(e => gp.getMeta(e.uuid)));
+        const images = hist
+            .map((e, i) => ({ ...e, ...metas[i] }))
+            .filter(e => e.kind === 'image');
         print(`imagens: ${images.length}`);
         for (const img of images)
             print(`  img uuid=${img.uuid.slice(0, 8)}… path=${img.imagePath}`);
