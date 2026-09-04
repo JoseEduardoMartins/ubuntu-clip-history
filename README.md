@@ -10,7 +10,7 @@ como no Windows.
 
 ## Requisitos
 
-- Ubuntu com Wayland + **GNOME Shell 46**
+- Ubuntu com Wayland + **GNOME Shell 46, 47 ou 48**
 - **GPaste** (`gpaste-2`) — o daemon que guarda o histórico; veja **Como funciona**
 
 ## Instalação
