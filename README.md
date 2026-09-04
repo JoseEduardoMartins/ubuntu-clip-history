@@ -48,21 +48,26 @@ de contexto e modais transientes (autofill do navegador, etc.).
 Por isso o histórico é alimentado pelo **daemon do GPaste**, que roda *dentro*
 do gnome-shell com acesso privilegiado à seleção. A extensão só **escuta** o
 sinal D-Bus `Update` do GPaste e lê os itens — puro D-Bus, **sem nunca tocar no
-foco**. Ao colar, a extensão vira dona do clipboard (`St.Clipboard.set_text`) e
-injeta `Ctrl+V` por um **dispositivo virtual do Clutter**, entregue ao app que
-tinha o foco antes do popup abrir — tudo dentro do próprio Shell, **sem ydotool
-nem wl-clipboard**.
+foco**. Ao colar, a extensão pede ao GPaste para recopiar o item (`Select`, que
+serve tanto para texto quanto para imagem) e injeta `Ctrl+V` por um **dispositivo
+virtual do Clutter**, entregue ao app que tinha o foco antes do popup abrir —
+tudo dentro do próprio Shell, **sem ydotool nem wl-clipboard**.
 
 Ser uma extensão (e não um app GTK) é a decisão central: no Wayland só o
 processo do Shell pode posicionar `actors` na tela e injetar teclas.
 
+O popup abre **no cursor de texto** do campo focado (mesma âncora do IBus); se
+não houver caret disponível, cai no canto inferior direito.
+
 ## Uso
 
-- Copie textos normalmente (`Ctrl+C`).
+- Copie textos **ou imagens** normalmente (`Ctrl+C`).
 - `Super+V` abre o histórico. Digite para filtrar, `↑`/`↓` para navegar,
   `Enter` para colar, `Esc` para fechar, `Alt+1..9` para escolha rápida.
+- **Imagens** aparecem como miniatura; escolher recopia a imagem pro clipboard.
 - **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
+  Só texto é fixável — imagens não.
 - **Excluir um item:** botão `×` na linha, ou `Ctrl+Delete` no item selecionado
   (o `Delete` sozinho edita o texto da busca).
 - **Excluir todos:** botão 🗑 (topo, ao lado da busca), com confirmação.
@@ -106,7 +111,7 @@ testes) e cria um GitHub Release com o zip anexado. Para cortar uma versão:
 git tag v2 && git push origin v2
 ```
 
-## Limites (v1)
+## Limites
 
-Só texto; últimos 100 itens (limite do GPaste); dedup. Fixados escapam do
-limite. Imagens e filtro de senha ficam para versões futuras.
+Texto e imagens; últimos 100 itens (limite do GPaste); dedup. Fixados (só texto)
+escapam do limite. O filtro de senha fica para versões futuras.
