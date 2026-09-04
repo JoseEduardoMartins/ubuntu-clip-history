@@ -5,6 +5,10 @@ name: CI
 on:
   pull_request:
 
+# Hooks do Husky são só pra dev local; no CI não instalamos (nada commita aqui).
+env:
+  HUSKY: 0
+
 jobs:
   test:
     runs-on: ubuntu-latest
