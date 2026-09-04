@@ -14,7 +14,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import { GPaste } from './gpaste.js';
 import { Picker, POPUP_WIDTH } from './picker.js';
-import { computePosition } from './position.js';
+import { computePosition, validCaret, pickMonitor } from './position.js';
 import {
     pinsPath, loadPins, savePins, addPin, removePin, isPinned, mergeEntries,
 } from './pins.js';
@@ -28,6 +28,7 @@ export default class ClipHistoryExtension extends Extension {
         this._pins = loadPins(this._pinsPath);
         this._picker = null;
         this._grab = null;
+        this._caret = null;
         this._pasteTimeout = 0;
 
         // GPaste isolado num try/catch: se o daemon não subir, o enable() ainda
@@ -83,6 +84,11 @@ export default class ClipHistoryExtension extends Extension {
     }
 
     _open() {
+        // Captura o caret ANTES de qualquer coisa: assim que o popup pega o
+        // foco (pushModal/grabFocus abaixo), o input method passa a apontar pro
+        // nosso St.Entry e o caret do app original se perde.
+        this._caret = this._captureCaret();
+
         const picker = new Picker();
         picker.connect('chosen', (_p, content) => this._onChosen(content));
         picker.connect('pin-toggled', (_p, content) => this._onPinToggled(content));
@@ -109,6 +115,24 @@ export default class ClipHistoryExtension extends Extension {
         }
         this._picker.destroy();
         this._picker = null;
+        this._caret = null;
+    }
+
+    // Retângulo do cursor de texto do campo focado, em coords de stage (px
+    // lógicos) — a mesma âncora do popup de candidatos do IBus. Fonte:
+    // Main.inputMethod._cursorRect, já transformado pelo Mutter. É API privada,
+    // então o acesso é defensivo: qualquer ausência/erro cai em null (o popup
+    // vai pro canto inferior direito). Independe de AT-SPI.
+    _captureCaret() {
+        try {
+            const im = Main.inputMethod;
+            // Sem campo de texto focado -> não há caret válido.
+            if (!im || !im.currentFocus)
+                return null;
+            return validCaret(im._cursorRect);
+        } catch {
+            return null;   // API privada ausente/mudou: cai no canto (fallback)
+        }
     }
 
     // `position` só no primeiro load (ao abrir): aí a altura já reflete os
@@ -137,16 +161,23 @@ export default class ClipHistoryExtension extends Extension {
     }
 
     _position() {
-        const monitor = Main.layoutManager.currentMonitor;
-        const workArea = Main.layoutManager.getWorkAreaForMonitor(monitor.index);
+        const caret = this._caret;
+
+        // Com caret, ancora no monitor que o contém; senão, no monitor atual.
+        const monitors = Main.layoutManager.monitors;
+        let idx = caret ? pickMonitor(caret, monitors) : -1;
+        if (idx < 0)
+            idx = Main.layoutManager.currentMonitor.index;
+        const workArea = Main.layoutManager.getWorkAreaForMonitor(idx);
+
         const [, natH] = this._picker.get_preferred_height(POPUP_WIDTH);
         const maxH = Math.floor(workArea.height * 0.7);
         const popup = { width: POPUP_WIDTH, height: Math.min(natH, maxH) };
         this._picker.height = popup.height;
 
-        // TODO(spike caret): quando o caret via IBus estiver pronto, passar o
-        // retângulo aqui. Por ora, sempre canto inferior direito.
-        const { x, y } = computePosition({ caret: null, workArea, popup });
+        // Abaixo do caret (ou acima, se não couber); sem caret, canto inferior
+        // direito. O _cursorRect já vem em coords de stage, igual à work area.
+        const { x, y } = computePosition({ caret, workArea, popup });
         this._picker.set_position(x, y);
     }
 

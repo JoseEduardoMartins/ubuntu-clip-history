@@ -1,6 +1,6 @@
 // Testes da função pura de posicionamento. Rodar: gjs -m extension/test/testPosition.js
 import System from 'system';
-import { computePosition } from '../position.js';
+import { computePosition, validCaret, pickMonitor } from '../position.js';
 
 let failures = 0;
 function check(name, cond) {
@@ -58,6 +58,44 @@ const margin = 12;
     // acima = 500-1040-8 < 32; abaixo estoura -> clamp em (32 + 1048 - 1040) = 40
     eq('clamp y', p.y, 32 + 1048 - 1040);
 }
+
+// --- validCaret --------------------------------------------------------------
+
+// 6. Retângulo de caret plausível passa e é normalizado.
+{
+    const c = validCaret({ x: 300, y: 200, width: 2, height: 18 });
+    check('validCaret aceita rect válido', c !== null);
+    eq('validCaret x', c.x, 300);
+    eq('validCaret height', c.height, 18);
+}
+// 7. null/undefined -> null.
+check('validCaret null', validCaret(null) === null);
+check('validCaret undefined', validCaret(undefined) === null);
+// 8. Altura zero -> null (sem linha de texto).
+check('validCaret height 0', validCaret({ x: 5, y: 5, width: 2, height: 0 }) === null);
+// 9. Tudo zerado -> null ("sem localização").
+check('validCaret tudo zero', validCaret({ x: 0, y: 0, width: 0, height: 0 }) === null);
+// 10. Campo faltando / NaN -> null.
+check('validCaret sem height', validCaret({ x: 1, y: 2, width: 3 }) === null);
+check('validCaret NaN', validCaret({ x: NaN, y: 2, width: 3, height: 18 }) === null);
+
+// --- pickMonitor -------------------------------------------------------------
+
+const monitors = [
+    { x: 0, y: 0, width: 1920, height: 1080 },      // 0: primário
+    { x: 1920, y: 0, width: 2560, height: 1440 },   // 1: à direita
+];
+// 11. Ponto no monitor 0.
+eq('pickMonitor no 0', pickMonitor({ x: 500, y: 300 }, monitors), 0);
+// 12. Ponto no monitor 1.
+eq('pickMonitor no 1', pickMonitor({ x: 2000, y: 100 }, monitors), 1);
+// 13. Borda: x exatamente no início do monitor 1 pertence ao 1.
+eq('pickMonitor borda esquerda do 1', pickMonitor({ x: 1920, y: 0 }, monitors), 1);
+// 14. Fora de todos -> -1.
+eq('pickMonitor fora', pickMonitor({ x: 9999, y: 9999 }, monitors), -1);
+// 15. Entradas inválidas -> -1.
+eq('pickMonitor caret null', pickMonitor(null, monitors), -1);
+eq('pickMonitor monitors inválido', pickMonitor({ x: 1, y: 1 }, null), -1);
 
 if (failures > 0) {
     print(`\n${failures} teste(s) falharam`);
