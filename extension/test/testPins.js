@@ -1,7 +1,7 @@
 // Testes de pins.js. Rodar: gjs -m extension/test/testPins.js
 import GLib from 'gi://GLib';
 import { check, eq, section, report } from './assert.js';
-import { mergeEntries, addPin, removePin, isPinned, loadPins, savePins, pinsPath } from '../pins.js';
+import { mergeEntries, addPin, removePin, isPinned, isPinnable, loadPins, savePins, pinsPath } from '../pins.js';
 
 // --- mergeEntries --------------------------------------------------------
 section('mergeEntries');
@@ -100,6 +100,15 @@ section('addPin / removePin / isPinned');
     check('isPinned true', isPinned(pins, 'x') === true);
     check('isPinned false', isPinned(pins, 'y') === false);
     check('isPinned lista vazia', isPinned([], 'x') === false);
+}
+
+// isPinnable: só texto (imagens e senhas não).
+{
+    check('isPinnable texto', isPinnable({ kind: 'text' }) === true);
+    check('isPinnable imagem', isPinnable({ kind: 'image' }) === false);
+    check('isPinnable senha', isPinnable({ kind: 'password' }) === false);
+    check('isPinnable sem kind -> texto', isPinnable({}) === true);
+    check('isPinnable entry nula -> texto', isPinnable(null) === true);
 }
 
 // --- Persistência (Gio) --------------------------------------------------

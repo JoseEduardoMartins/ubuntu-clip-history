@@ -104,6 +104,14 @@ section('getMeta');
     eq('kind vazio -> text', (await gp.getMeta('a')).kind, 'text');
 }
 
+// Senha: kind 'password', sem imagePath, e NÃO consulta GetRawElement.
+{
+    const { gp, calls } = fakeGPaste({ GetElementKind: () => ['Password'] });
+    const m = await gp.getMeta('pw');
+    deepEq('senha -> {password, null}', m, { kind: 'password', imagePath: null });
+    eq('senha não busca raw element', countMethod(calls, 'GetRawElement'), 0);
+}
+
 // Imagem sem raw element -> imagePath null (value || null).
 {
     const { gp } = fakeGPaste({

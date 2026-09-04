@@ -17,6 +17,13 @@ export function isPinned(pins, content) {
     return pins.some(p => p.content === content);
 }
 
+// Só texto é fixável. Imagens seguem o cap do GPaste (miniatura vive só no
+// histórico); senhas nunca devem virar um pino durável em disco. Entradas sem
+// `kind` são tratadas como texto (default defensivo).
+export function isPinnable(entry) {
+    return (entry?.kind ?? 'text') === 'text';
+}
+
 export function addPin(pins, content) {
     if (isPinned(pins, content))
         return pins.slice();
