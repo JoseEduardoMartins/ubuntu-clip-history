@@ -1,9 +1,8 @@
 # Arquitetura
 
-Documento vivo do estado **atual** do código. Para o histórico de decisões de
-design (o "porquê" original, incluindo caminhos que não foram seguidos), veja o
-spec datado em
-[`docs/superpowers/specs/2026-09-01-clip-history-gnome-extension-design.md`](superpowers/specs/2026-09-01-clip-history-gnome-extension-design.md).
+Documento vivo do estado **atual** do código: mapa de módulos, fluxo de dados,
+decisões de design (o "porquê") e restrições conhecidas. Para a visão de produto
+e instalação, veja o [`README.md`](../README.md).
 
 ## Visão geral
 
@@ -33,7 +32,7 @@ existe para tornar testável o que carrega a complexidade real.
 | `gpaste.js` | Wrapper fino do D-Bus do GPaste (**chamadas assíncronas**): `getHistory` (barato: uuid+content), `getMeta` (lazy por uuid: kind/imagePath, cacheado), `add`, `select`, `delete`, `empty`, sinal `Update` | Gio/GLib |
 | `picker.js` | UI do popup (`St`): header, busca, lista rolável (texto + **miniatura de imagem** via `TextureCache`), footer; navegação por teclado; emite sinais | St/Clutter/GObject/Gio |
 | `pickerLogic.js` | **Puro:** `filterEntries`, `clampSelected`, `nextSelected`, `keyAction` | nenhum |
-| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`); **+ persistência** JSON via Gio | misto (lógica pura + Gio) |
+| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`); **+ persistência** em `~/.local/share/clip-history/pins.json` via Gio | misto (lógica pura + Gio) |
 | `position.js` | **Puro:** `computePosition`, `validCaret`, `pickMonitor` — onde o popup aparece dado caret + work area (multi-monitor) | nenhum |
 | `text.js` | **Puro:** `preview` — colapsa/apara texto para o label da linha | nenhum |
 | `prefs.js` | Tela de preferências (só o atalho), Adw/Gtk | Adw/Gtk |
