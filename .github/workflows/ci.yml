@@ -1,9 +1,13 @@
 name: CI
 
+# Checks de Pull Request: instala deps, lint, testes e validações. O release
+# (semantic-release) roda separado, no release.yml, só após o merge na main.
 on:
-  push:
-    branches: [main]
   pull_request:
+
+# Hooks do Husky são só pra dev local; no CI não instalamos (nada commita aqui).
+env:
+  HUSKY: 0
 
 jobs:
   test:
@@ -11,18 +15,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Instalar gjs e ferramentas do GLib
         run: |
           sudo apt-get update
           sudo apt-get install -y gjs libglib2.0-bin
 
-      - name: Testes de lógica (gjs)
-        run: bash extension/test/run.sh
+      - name: Instalar dependências
+        run: npm install
 
       - name: Lint (ESLint)
-        run: |
-          npm install
-          npm run lint
+        run: npm run lint
+
+      - name: Testes de lógica (gjs)
+        run: npm test
 
       - name: Validar o schema de configurações
         run: glib-compile-schemas --strict --dry-run extension/schemas

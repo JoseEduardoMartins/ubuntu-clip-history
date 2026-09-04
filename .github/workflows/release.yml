@@ -1,8 +1,9 @@
 name: Release
 
-# Release automático (semantic-release): a cada push na main, analisa os commits
-# (Conventional Commits), calcula a próxima versão, gera o CHANGELOG, empacota a
-# extensão e publica o GitHub Release. O commit de release usa [skip ci].
+# Release automático: a cada push na main, o semantic-release analisa os commits
+# (Conventional Commits), calcula a versão, gera o CHANGELOG, empacota a extensão
+# e publica o GitHub Release. A validação (lint/testes) já rodou no CI do PR.
+# O commit de release usa [skip ci].
 on:
   push:
     branches: [main]
@@ -11,6 +12,12 @@ permissions:
   contents: write        # criar tag/release e commitar o CHANGELOG/metadata
   issues: write          # comentários do semantic-release
   pull-requests: write
+
+# Hooks do Husky são só pra dev local: em CI, o commit de release do
+# @semantic-release/git NÃO deve passar pelo commit-msg (o corpo é o CHANGELOG
+# inteiro, com linhas > 100 chars, que o commitlint rejeitaria).
+env:
+  HUSKY: 0
 
 jobs:
   release:
@@ -27,23 +34,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Instalar gjs e ferramentas do GLib
+      # gjs/GLib/zip são usados pelo prepareCmd (build-zip.sh) durante o release.
+      - name: Instalar ferramentas de empacotamento
         run: |
           sudo apt-get update
-          sudo apt-get install -y gjs libglib2.0-bin zip
+          sudo apt-get install -y libglib2.0-bin zip
 
       - name: Instalar dependências
         run: npm install
-
-      # Portão de qualidade antes de liberar: mesmos checks do CI.
-      - name: Testes de lógica (gjs)
-        run: npm test
-
-      - name: Lint (ESLint)
-        run: npm run lint
-
-      - name: Validar metadata.json
-        run: node .github/scripts/check-metadata.mjs
 
       - name: Semantic Release
         env:
