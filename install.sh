@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala a extensão clip-history (GNOME Shell) e migra do app antigo.
+# Instala a extensão clip-history (GNOME Shell).
 set -euo pipefail
 
 UUID="clip-history@joseeduardomartins.com"
@@ -28,22 +28,6 @@ if echo "$CUR" | grep -q "<Super>v"; then
     NEW="$(echo "$CUR" | sed "s/'<Super>v', //; s/, '<Super>v'//; s/'<Super>v'//")"
     gsettings set org.gnome.shell.keybindings toggle-message-tray "$NEW"
 fi
-
-echo "==> Migrando do app antigo (watcher/ydotool)"
-systemctl --user disable --now clip-history-watch.service 2>/dev/null || true
-systemctl --user disable --now ydotoold.service 2>/dev/null || true
-# Remove o atalho custom antigo do GNOME (rodava 'clip-history show'), se existir.
-BASE="org.gnome.settings-daemon.plugins.media-keys"
-LIST="$(gsettings get "$BASE" custom-keybindings 2>/dev/null || echo "@as []")"
-for slot in $(echo "$LIST" | grep -oE "custom-keybindings/custom[0-9]+"); do
-    P="/org/gnome/settings-daemon/plugins/media-keys/keybindings/$slot/"
-    NAME="$(gsettings get "$BASE.custom-keybinding:$P" name 2>/dev/null || echo '')"
-    if echo "$NAME" | grep -q "clip-history"; then
-        echo "    removendo atalho antigo em $slot"
-        NEWLIST="$(echo "$LIST" | sed "s#'/org/gnome/settings-daemon/plugins/media-keys/keybindings/$slot/', ##; s#, '/org/gnome/settings-daemon/plugins/media-keys/keybindings/$slot/'##; s#'/org/gnome/settings-daemon/plugins/media-keys/keybindings/$slot/'##")"
-        gsettings set "$BASE" custom-keybindings "$NEWLIST"
-    fi
-done
 
 echo "==> Habilitando a extensão"
 gnome-extensions enable "$UUID" 2>/dev/null || \

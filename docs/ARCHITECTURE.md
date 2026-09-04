@@ -1,8 +1,9 @@
 # Arquitetura
 
 Documento vivo do estado **atual** do código. Para o histórico de decisões de
-design (o "porquê" original, incluindo caminhos que não foram seguidos), veja os
-specs datados em `docs/superpowers/specs/`.
+design (o "porquê" original, incluindo caminhos que não foram seguidos), veja o
+spec datado em
+[`docs/superpowers/specs/2026-09-01-clip-history-gnome-extension-design.md`](superpowers/specs/2026-09-01-clip-history-gnome-extension-design.md).
 
 ## Visão geral
 
@@ -96,9 +97,8 @@ CI + teste manual (`Super+V`).
 
 `install.sh` copia `extension/` para
 `~/.local/share/gnome-shell/extensions/<uuid>/`, compila o gschema, libera o
-`Super+V` do `toggle-message-tray`, migra do app antigo (watcher/ydotool) e
-habilita a extensão. No **Wayland**, a extensão nova só carrega após
-**logout/login**.
+`Super+V` do `toggle-message-tray` e habilita a extensão. No **Wayland**, a
+extensão nova só carrega após **logout/login**.
 
 ## Restrições e pontos em aberto
 
