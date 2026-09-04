@@ -117,9 +117,19 @@ para módulos puros (como `pickerLogic.js`) — ou injetar as dependências, com
   valida o schema (`glib-compile-schemas --strict`), o `metadata.json`
   (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os `.js`. O ESLint
   é a única dependência Node (dev); nada disso vai pro pacote da extensão.
-- **`.github/workflows/release.yml`** (tag `v*`): reexecuta as checagens,
-  empacota `extension/` num zip (schema compilado, sem `test/`) e publica um
-  GitHub Release com o anexo.
+- **`.github/workflows/release.yml`** (push na `main`): **semantic-release**
+  analisa os commits (Conventional Commits), calcula a próxima versão semver,
+  gera o `CHANGELOG.md`, empacota `extension/` num zip (`scripts/build-zip.sh`)
+  e publica o GitHub Release. Sem tag manual.
+
+O `metadata.json` do GNOME exige `version` inteiro; `scripts/release-prepare.mjs`
+incrementa esse inteiro em +1 a cada release e grava o semver em `version-name`.
+O `@semantic-release/git` commita `CHANGELOG.md` + `metadata.json` de volta na
+`main` (com `[skip ci]`, pra não reentrar no workflow).
+
+Commits e hooks: **Husky** (`.husky/`) instala `pre-commit` (ESLint + testes) e
+`commit-msg` (**commitlint**, `commitlint.config.js`). Config do release em
+`.releaserc.json`.
 
 ## Instalação e empacotamento
 

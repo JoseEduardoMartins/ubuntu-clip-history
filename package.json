@@ -1,15 +1,26 @@
 {
   "name": "ubuntu-clip-history",
-  "version": "0.0.0",
+  "version": "0.0.0-managed",
   "private": true,
   "type": "module",
-  "description": "Ferramentas de dev (lint) da extensão GNOME clip-history. A extensão em si é GJS puro e não depende de Node.",
+  "description": "Ferramentas de dev (lint, hooks, release) da extensão GNOME clip-history. A extensão em si é GJS puro e não depende de Node em runtime.",
   "scripts": {
-    "lint": "eslint extension"
+    "lint": "eslint extension",
+    "test": "bash extension/test/run.sh",
+    "release": "semantic-release",
+    "prepare": "husky || true"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@eslint/js": "^9.13.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.1",
     "eslint": "^9.13.0",
-    "globals": "^15.11.0"
+    "globals": "^15.11.0",
+    "husky": "^9.1.6",
+    "semantic-release": "^24.2.0"
   }
 }
