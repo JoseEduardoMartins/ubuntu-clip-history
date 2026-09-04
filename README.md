@@ -103,19 +103,20 @@ O restante (`extension.js`, `picker.js`, `prefs.js`) é acoplado ao GNOME Shell
 e não roda fora de uma sessão; o CI valida a sintaxe desses arquivos, mas o
 comportamento deles é verificado manualmente (`Super+V`).
 
-**CI** (`.github/workflows/ci.yml`, em push na `main` e em todo PR): roda o
-`run.sh`, o **ESLint** (`npm run lint` — pega `no-undef`/`no-unused-vars`), valida
-o schema (`glib-compile-schemas --strict`), o `metadata.json` e a sintaxe de todos
-os `.js`. As ferramentas Node (ESLint, hooks, release) são só de desenvolvimento;
-a extensão em si é GJS puro e não vai com `node_modules` no pacote.
+**CI de PR** (`.github/workflows/ci.yml`, em todo Pull Request): instala as deps,
+roda o **ESLint** (`npm run lint` — pega `no-undef`/`no-unused-vars`), a suíte de
+testes (`npm test`), valida o schema (`glib-compile-schemas --strict`), o
+`metadata.json` e a sintaxe de todos os `.js`. As ferramentas Node (ESLint, hooks,
+release) são só de desenvolvimento; a extensão em si é GJS puro e não vai com
+`node_modules` no pacote.
 
 ## Commits e versionamento
 
 Os commits seguem **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`…).
-O **Husky** instala dois hooks (via `npm install`): `pre-commit` roda ESLint + a
-suíte de testes, e `commit-msg` valida a mensagem com `commitlint`. Tipos que
-geram release: `feat` → *minor*, `fix`/`perf` → *patch*, `BREAKING CHANGE` →
-*major*.
+O **Husky** instala dois hooks (via `npm install`): `pre-commit` roda o ESLint
+(rápido), e `commit-msg` valida a mensagem com `commitlint`. Os testes ficam para
+o CI do PR. Tipos que geram release: `feat` → *minor*, `fix`/`perf` → *patch*,
+`BREAKING CHANGE` → *major*.
 
 **Release** (`.github/workflows/release.yml`) é automático: a cada push na `main`,
 o **semantic-release** analisa os commits, calcula a próxima versão semver, gera o

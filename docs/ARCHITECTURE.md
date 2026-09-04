@@ -112,11 +112,11 @@ para módulos puros (como `pickerLogic.js`) — ou injetar as dependências, com
 
 ## CI/CD
 
-- **`.github/workflows/ci.yml`** (push na `main` + PR): `run.sh`, ESLint
-  (`npm run lint`, config flat em `eslint.config.js` com os globais do GJS),
-  valida o schema (`glib-compile-schemas --strict`), o `metadata.json`
-  (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os `.js`. O ESLint
-  é a única dependência Node (dev); nada disso vai pro pacote da extensão.
+- **`.github/workflows/ci.yml`** (em Pull Request): instala as deps, roda ESLint
+  (`npm run lint`, config flat em `eslint.config.js` com os globais do GJS), a
+  suíte (`npm test`), valida o schema (`glib-compile-schemas --strict`), o
+  `metadata.json` (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os
+  `.js`. As deps Node são só de dev; nada disso vai pro pacote da extensão.
 - **`.github/workflows/release.yml`** (push na `main`): **semantic-release**
   analisa os commits (Conventional Commits), calcula a próxima versão semver,
   gera o `CHANGELOG.md`, empacota `extension/` num zip (`scripts/build-zip.sh`)
@@ -127,9 +127,9 @@ incrementa esse inteiro em +1 a cada release e grava o semver em `version-name`.
 O `@semantic-release/git` commita `CHANGELOG.md` + `metadata.json` de volta na
 `main` (com `[skip ci]`, pra não reentrar no workflow).
 
-Commits e hooks: **Husky** (`.husky/`) instala `pre-commit` (ESLint + testes) e
-`commit-msg` (**commitlint**, `commitlint.config.js`). Config do release em
-`.releaserc.json`.
+Commits e hooks: **Husky** (`.husky/`) instala `pre-commit` (ESLint) e
+`commit-msg` (**commitlint**, `commitlint.config.js`); os testes ficam no CI do
+PR. Config do release em `.releaserc.json`.
 
 ## Instalação e empacotamento
 
