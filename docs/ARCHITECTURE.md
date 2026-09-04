@@ -89,14 +89,26 @@ para a vista — não reconstrói a lista. O mapa de constantes do Clutter fica 
 ## Testes
 
 A lógica pura é testada com o interpretador `gjs`; o runner
-`extension/test/run.sh` roda os quatro suites (`testPins`, `testPosition`,
-`testText`, `testPickerLogic`). O `smokeGpasteRead.js` é um smoke read-only
-contra o daemon vivo — fica **fora** do runner/CI (precisa do session bus).
+`extension/test/run.sh` roda os suites `testPins`, `testPosition`, `testText`,
+`testPickerLogic` e `testGpaste`. Todos compartilham o mini-harness
+`extension/test/assert.js` (`eq`/`deepEq`/`check`/`report`), que conta os asserts
+e sai com status != 0 se algum falhar.
+
+`gpaste.js` é testável apesar do D-Bus: o construtor aceita `{ call }`, uma
+função que substitui `_proxy.call(...)`. `testGpaste.js` injeta um duble que
+devolve variantes falsas (`{ deepUnpack }`) e registra as chamadas, cobrindo o
+cache do `getMeta`, a poda do `getHistory`, a normalização de `kind`, a
+degradação sem `GetElementKind` e o roteamento de `add`/`select`/`delete`/`empty`
+— sem sessão nem daemon. Sem `{ call }`, o construtor sobe o proxy real
+(produção, comportamento inalterado).
+
+O `smokeGpasteRead.js` é um smoke read-only contra o daemon vivo — fica **fora**
+do runner/CI (precisa do session bus).
 
 A camada acoplada (`extension.js`, `picker.js`, `prefs.js`) não tem teste
 unitário por depender de uma sessão GNOME viva; a estratégia é extrair a lógica
-para módulos puros (como `pickerLogic.js`) e validar a casca por syntax-check no
-CI + teste manual (`Super+V`).
+para módulos puros (como `pickerLogic.js`) — ou injetar as dependências, como no
+`gpaste.js` — e validar a casca por syntax-check no CI + teste manual (`Super+V`).
 
 ## CI/CD
 

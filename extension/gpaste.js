@@ -11,7 +11,22 @@ const PATH = '/org/gnome/GPaste';
 const IFACE = 'org.gnome.GPaste2';
 
 export class GPaste {
-    constructor() {
+    // `opts.call(method, params) -> Promise<variant>` permite injetar a camada
+    // D-Bus nos testes (sem sessão/daemon reais); `opts.proxy` é um duble
+    // opcional para connectUpdate/destroy. Sem opts, sobe o proxy real —
+    // caminho de produção, comportamento inalterado.
+    constructor({ call, proxy } = {}) {
+        this._updateId = 0;
+        // Cache uuid -> { kind, imagePath }: o kind de um item nunca muda, então
+        // só consultamos uuids novos a cada refresh (evita N chamadas repetidas).
+        this._meta = new Map();
+
+        if (call) {
+            this._call = call;      // instância sobrepõe o método de prototype
+            this._proxy = proxy ?? null;
+            return;
+        }
+
         const bus = Gio.bus_get_sync(Gio.BusType.SESSION, null);
         // NÃO iniciar o GPaste na construção: no login o daemon pode ainda não
         // estar pronto, e o StartServiceByName síncrono dava timeout — isso
@@ -26,10 +41,6 @@ export class GPaste {
             Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION |
             Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
             null, NAME, PATH, IFACE, null);
-        this._updateId = 0;
-        // Cache uuid -> { kind, imagePath }: o kind de um item nunca muda, então
-        // só consultamos uuids novos a cada refresh (evita N chamadas repetidas).
-        this._meta = new Map();
     }
 
     // Chamada D-Bus assíncrona embrulhada numa Promise. Usa `call`/`call_finish`
