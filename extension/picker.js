@@ -7,14 +7,18 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 
 import { preview } from './text.js';
+import { isPinnable } from './pins.js';
 import { filterEntries, clampSelected, nextSelected, keyAction } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
-const THUMB_SIZE = 48; // lado da miniatura de imagem, em px lógicos
-const PAGE_JUMP = 10;  // linhas puladas por PageUp/PageDown
+const THUMB_SIZE = 48;          // lado da miniatura de imagem, em px lógicos
+const PAGE_JUMP = 10;           // linhas puladas por PageUp/PageDown
+const FILTER_DEBOUNCE_MS = 120; // espera parar de digitar antes de refiltrar
+const PASSWORD_MASK = '••••••••'; // legenda dos itens de senha (nunca o valor)
 
 export const Picker = GObject.registerClass({
     Signals: {
@@ -41,6 +45,10 @@ export const Picker = GObject.registerClass({
         this._buildSearch();
         this._buildList();
         this._buildFooter();
+
+        // Cancela um refiltro pendente ao destruir (o popup fecha antes do
+        // debounce disparar).
+        this.connect('destroy', () => this._cancelFilter());
 
         this.connect('key-press-event', (_a, event) => this._onKeyPress(event));
         this.connect('button-press-event', (_a, event) => this._onButtonPress(event));
@@ -85,11 +93,44 @@ export const Picker = GObject.registerClass({
             can_focus: true,
             x_expand: true,
         });
-        this._search.clutter_text.connect('text-changed', () => this._applyFilter());
+        // Debounce: refiltrar a cada tecla reconstruía a lista inteira (e
+        // redisparava o resolveMeta de cada linha). Espera parar de digitar.
+        this._search.clutter_text.connect('text-changed', () => this._scheduleFilter());
         // O St.Entry consome o Return (emite 'activate' e para a propagação),
-        // então o Enter nunca chega ao _onKeyPress. Tratamos aqui.
-        this._search.clutter_text.connect('activate', () => this._choose(this._selected));
+        // então o Enter nunca chega ao _onKeyPress. Tratamos aqui — mas primeiro
+        // aplicamos qualquer filtro pendente, pra escolher sobre a lista certa.
+        this._search.clutter_text.connect('activate', () => {
+            this._flushFilter();
+            this._choose(this._selected);
+        });
         this.add_child(this._search);
+    }
+
+    // --- Debounce do filtro de busca ---------------------------------------
+
+    _scheduleFilter() {
+        this._cancelFilter();
+        this._filterTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, FILTER_DEBOUNCE_MS, () => {
+                this._filterTimeout = 0;
+                this._applyFilter();
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    // Aplica agora um filtro que ainda estava no debounce (ex.: Enter).
+    _flushFilter() {
+        if (this._filterTimeout) {
+            this._cancelFilter();
+            this._applyFilter();
+        }
+    }
+
+    _cancelFilter() {
+        if (this._filterTimeout) {
+            GLib.source_remove(this._filterTimeout);
+            this._filterTimeout = 0;
+        }
     }
 
     _buildList() {
@@ -165,18 +206,25 @@ export const Picker = GObject.registerClass({
                 row.add_style_class_name('selected');
 
             const prefix = i < 9 ? `${i + 1}. ` : '';
-            const known = entry.kind === 'image' && entry.imagePath;
+            const isImage = entry.kind === 'image' && entry.imagePath;
+            const isPassword = entry.kind === 'password';
+            const known = isImage || isPassword; // kind já resolvido/cacheado
 
-            // Conteúdo: imagem se já conhecida; senão texto (que pode virar
-            // imagem depois via resolveMeta). Guarda o ator pra poder trocar.
-            const content = known
-                ? this._imageContent(prefix, entry.imagePath, entry.content)
-                : this._textContent(prefix, entry.content);
+            // Conteúdo: imagem/senha se já conhecidas; senão texto (que pode
+            // virar imagem OU senha depois via resolveMeta). Guarda o ator pra
+            // poder trocar.
+            let content;
+            if (isImage)
+                content = this._imageContent(prefix, entry.imagePath, entry.content);
+            else if (isPassword)
+                content = this._passwordContent(prefix);
+            else
+                content = this._textContent(prefix, entry.content);
             row.add_child(content);
             row._contentActor = content;
 
-            // Imagens não são fixáveis (seguem o cap do GPaste); ★ só em texto.
-            if (!known) {
+            // Só texto é fixável (imagens/senhas não) — ver isPinnable.
+            if (isPinnable(entry)) {
                 const pin = new St.Button({
                     style_class: 'clip-history-icon-button',
                     child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
@@ -201,15 +249,18 @@ export const Picker = GObject.registerClass({
             this._list.add_child(row);
             this._rows.push(row);
 
-            // Lazy: descobre kind/imagePath só agora, por linha. Se for imagem,
-            // faz upgrade da linha de texto (sem bloquear a pintura inicial).
+            // Lazy: descobre kind/imagePath só agora, por linha. Se for imagem
+            // ou senha, faz upgrade da linha de texto (sem bloquear a pintura).
             if (!known && entry.uuid && this._resolveMeta) {
                 this._resolveMeta(entry.uuid).then(meta => {
                     if (token !== this._renderToken)   // lista já foi reconstruída
                         return;
-                    if (!meta || meta.kind !== 'image' || !meta.imagePath)
+                    if (!meta)
                         return;
-                    this._upgradeToImage(row, entry, prefix, meta.imagePath);
+                    if (meta.kind === 'image' && meta.imagePath)
+                        this._upgradeToImage(row, entry, prefix, meta.imagePath);
+                    else if (meta.kind === 'password')
+                        this._upgradeToPassword(row, entry, prefix);
                 }).catch(() => {});
             }
         });
@@ -238,6 +289,28 @@ export const Picker = GObject.registerClass({
         }
     }
 
+    // Troca uma linha de texto pela variante senha (cadeado + máscara) e remove
+    // o botão de pino. Muta a `entry` (kind) pra que teclado e re-renders já a
+    // tratem como senha (não fixável, sempre mascarada). O valor real nunca é
+    // exibido — só recopiado ao escolher (via Select).
+    _upgradeToPassword(row, entry, prefix) {
+        entry.kind = 'password';
+
+        if (row._contentActor) {
+            row.remove_child(row._contentActor);
+            row._contentActor.destroy();
+        }
+        const content = this._passwordContent(prefix);
+        row.insert_child_at_index(content, 0);
+        row._contentActor = content;
+
+        if (row._pinButton) {
+            row.remove_child(row._pinButton);
+            row._pinButton.destroy();
+            row._pinButton = null;
+        }
+    }
+
     _textContent(prefix, content) {
         const label = new St.Label({
             style_class: 'clip-history-row-label',
@@ -248,6 +321,27 @@ export const Picker = GObject.registerClass({
         label.clutter_text.single_line_mode = true;
         label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         return label;
+    }
+
+    // Linha de senha: cadeado + máscara fixa. NUNCA mostra o conteúdo (item
+    // marcado como Password pelo GPaste). Escolher ainda recopia o valor real
+    // pro clipboard (é o ponto do histórico); só a exibição é protegida.
+    _passwordContent(prefix) {
+        const box = new St.BoxLayout({
+            style_class: 'clip-history-row-label',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(new St.Icon({
+            style_class: 'clip-history-lock',
+            icon_name: 'dialog-password-symbolic',
+            icon_size: 14,
+        }));
+        box.add_child(new St.Label({
+            text: prefix + PASSWORD_MASK,
+            y_align: Clutter.ActorAlign.CENTER,
+        }));
+        return box;
     }
 
     // Linha de imagem: miniatura (via TextureCache, async/cacheado) + legenda
@@ -391,7 +485,7 @@ export const Picker = GObject.registerClass({
             return Clutter.EVENT_STOP;
         case 'pin-selected': {
             const e = this._entries[this._selected];
-            if (e && e.kind !== 'image')   // imagens não são fixáveis
+            if (e && isPinnable(e))   // imagens/senhas não são fixáveis
                 this.emit('pin-toggled', e.content);
             return Clutter.EVENT_STOP;
         }

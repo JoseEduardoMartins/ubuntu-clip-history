@@ -66,9 +66,11 @@ não houver caret disponível, cai no canto inferior direito.
   `Ctrl+Home`/`Ctrl+End`) para navegar, `Enter` para colar, `Alt+1..9` para
   escolha rápida. `Esc` limpa a busca se houver texto; com a busca vazia, fecha.
 - **Imagens** aparecem como miniatura; escolher recopia a imagem pro clipboard.
+- **Senhas** (itens que o GPaste marca como `Password`) aparecem **mascaradas**
+  (🔒 `••••••••`) — o valor nunca é exibido, só recopiado ao escolher.
 - **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
-  Só texto é fixável — imagens não.
+  Só texto é fixável — imagens e senhas não.
 - **Excluir um item:** botão `×` na linha, ou `Ctrl+Delete` no item selecionado
   (o `Delete` sozinho edita o texto da busca).
 - **Excluir todos:** botão 🗑 (topo, ao lado da busca), com confirmação.
@@ -129,4 +131,6 @@ manual — a versão sai dos commits.
 ## Limites
 
 Texto e imagens; últimos 100 itens (limite do GPaste); dedup. Fixados (só texto)
-escapam do limite. O filtro de senha fica para versões futuras.
+escapam do limite. Itens de senha aparecem mascarados na lista (não fixáveis) —
+mas dependem do GPaste marcá-los como `Password`; apps que copiam a senha como
+texto comum não são detectados.

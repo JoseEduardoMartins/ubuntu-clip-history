@@ -144,11 +144,18 @@ extensão nova só carrega após **logout/login**.
   (não é API pública/estável do Shell). O acesso é defensivo — se a propriedade
   sumir ou mudar entre versões, `_captureCaret` cai em `null` e o popup volta ao
   canto inferior direito. Independe de AT-SPI.
-- **Imagens não são fixáveis:** o pino é um store de texto (dedup por `content`);
-  itens `kind === 'image'` não expõem o botão `★`. Imagens vivem só enquanto
-  estão no histórico do GPaste (sujeitas ao cap de 100).
+- **Só texto é fixável** (`isPinnable`): o pino é um store de texto (dedup por
+  `content`); `kind === 'image'` e `kind === 'password'` não expõem o botão `★`.
+  Imagens vivem só enquanto estão no histórico do GPaste (cap de 100).
+- **Senhas mascaradas:** itens que o GPaste marca como `Password` são exibidos
+  com cadeado + máscara (`_passwordContent`), nunca o valor — que só é recopiado
+  ao escolher. Como o `kind` é resolvido lazy (por linha), há uma janela mínima
+  antes do upgrade; depende ainda do GPaste marcar o item como senha (apps que
+  copiam a senha como texto comum não são detectados).
 - **GPaste é obrigatório:** sem o daemon, `getHistory` falha e a lista fica
   vazia — o `enable()` sobrevive de propósito (não vai a estado ERROR). Um GPaste
   que não exponha `GetElementKind`/`GetRawElement` degrada tudo para texto.
-- **Texto e imagens**, últimos 100 itens (limite do GPaste); pinos (de texto)
-  escapam do limite. Filtro de senha fica para versões futuras.
+- **Busca com debounce:** o campo de busca refiltra ~120ms depois da última
+  tecla (não a cada caractere), evitando reconstruir a lista inteira na digitação.
+- **Texto, imagens e senhas**, últimos 100 itens (limite do GPaste); pinos (de
+  texto) escapam do limite.
