@@ -1,64 +1,51 @@
 name: Release
 
+# Release automático (semantic-release): a cada push na main, analisa os commits
+# (Conventional Commits), calcula a próxima versão, gera o CHANGELOG, empacota a
+# extensão e publica o GitHub Release. O commit de release usa [skip ci].
 on:
   push:
-    tags: ['v*']
+    branches: [main]
 
 permissions:
-  contents: write   # necessário para criar o GitHub Release
+  contents: write        # criar tag/release e commitar o CHANGELOG/metadata
+  issues: write          # comentários do semantic-release
+  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Evita loop: o commit de release ("chore(release): … [skip ci]") não dispara.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # semantic-release precisa do histórico completo
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
       - name: Instalar gjs e ferramentas do GLib
         run: |
           sudo apt-get update
           sudo apt-get install -y gjs libglib2.0-bin zip
 
-      # Reaproveita as mesmas checagens do CI antes de empacotar.
-      - name: Testes de lógica (gjs)
-        run: bash extension/test/run.sh
+      - name: Instalar dependências
+        run: npm install
 
-      - name: Validar o schema de configurações
-        run: glib-compile-schemas --strict --dry-run extension/schemas
+      # Portão de qualidade antes de liberar: mesmos checks do CI.
+      - name: Testes de lógica (gjs)
+        run: npm test
+
+      - name: Lint (ESLint)
+        run: npm run lint
 
       - name: Validar metadata.json
         run: node .github/scripts/check-metadata.mjs
 
-      # Alinha metadata.json à tag: v2 -> version 2 (o GNOME exige inteiro).
-      # Só o artefato empacotado é ajustado; o metadata.json do repo fica como
-      # está. Tag fora do formato vN mantém a versão atual (sem falhar).
-      - name: Injetar a versão da tag no metadata.json
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if [[ "$VERSION" =~ ^[0-9]+$ ]]; then
-            node -e "const fs=require('fs');const p='extension/metadata.json';const m=JSON.parse(fs.readFileSync(p));m.version=$VERSION;fs.writeFileSync(p, JSON.stringify(m, null, 2) + '\n');console.log('metadata.version =', m.version);"
-          else
-            echo "Tag '${GITHUB_REF_NAME}' não é vN; mantendo a versão atual do metadata.json." >&2
-          fi
-
-      - name: Empacotar a extensão
-        id: pack
-        run: |
-          UUID=$(node -e "process.stdout.write(require('./extension/metadata.json').uuid)")
-          ZIP="$UUID.zip"
-          # Compila o schema para dentro do pacote (o zip precisa do gschemas.compiled).
-          glib-compile-schemas extension/schemas
-          # Zipa o conteúdo de extension/ na raiz do zip, como o gnome-extensions
-          # espera. Exclui os testes e arquivos ocultos — não vão no pacote.
-          ( cd extension && zip -r -q "../$ZIP" . -x '*/.*' -x 'test/*' )
-          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "Empacotado: $ZIP"
-          unzip -l "$ZIP"
-
-      - name: Criar o GitHub Release e anexar o zip
+      - name: Semantic Release
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            "${{ steps.pack.outputs.zip }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release

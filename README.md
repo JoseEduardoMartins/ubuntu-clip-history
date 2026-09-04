@@ -106,17 +106,24 @@ comportamento deles é verificado manualmente (`Super+V`).
 **CI** (`.github/workflows/ci.yml`, em push na `main` e em todo PR): roda o
 `run.sh`, o **ESLint** (`npm run lint` — pega `no-undef`/`no-unused-vars`), valida
 o schema (`glib-compile-schemas --strict`), o `metadata.json` e a sintaxe de todos
-os `.js`. O ESLint é a única dependência Node (dev) do repo; a extensão em si é
-GJS puro.
+os `.js`. As ferramentas Node (ESLint, hooks, release) são só de desenvolvimento;
+a extensão em si é GJS puro e não vai com `node_modules` no pacote.
 
-**Release** (`.github/workflows/release.yml`, ao empurrar uma tag `v*`):
-reexecuta as checagens, empacota `extension/` num
-`clip-history@joseeduardomartins.com.zip` (com o schema compilado, sem os
-testes) e cria um GitHub Release com o zip anexado. Para cortar uma versão:
+## Commits e versionamento
 
-```bash
-git tag v2 && git push origin v2
-```
+Os commits seguem **Conventional Commits** (`feat:`, `fix:`, `docs:`, `chore:`…).
+O **Husky** instala dois hooks (via `npm install`): `pre-commit` roda ESLint + a
+suíte de testes, e `commit-msg` valida a mensagem com `commitlint`. Tipos que
+geram release: `feat` → *minor*, `fix`/`perf` → *patch*, `BREAKING CHANGE` →
+*major*.
+
+**Release** (`.github/workflows/release.yml`) é automático: a cada push na `main`,
+o **semantic-release** analisa os commits, calcula a próxima versão semver, gera o
+`CHANGELOG.md`, empacota `extension/` no `clip-history@joseeduardomartins.com.zip`
+(schema compilado, sem `test/`) e publica um GitHub Release com o zip anexado.
+Como o GNOME exige `version` **inteiro** no `metadata.json`, o release incrementa
+esse inteiro em +1 e guarda o semver legível em `version-name`. Não há mais tag
+manual — a versão sai dos commits.
 
 ## Limites
 
