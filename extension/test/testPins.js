@@ -34,6 +34,37 @@ function eq(name, got, want) {
     eq('p1 aparece 1x', m.filter(e => e.content === 'p1').length, 1);
 }
 
+// mergeEntries: propaga kind/imagePath do histórico; pinos são sempre texto.
+{
+    const pins = [{ content: 'p1' }];
+    const history = [
+        { uuid: 'u1', content: 'txt', kind: 'text', imagePath: null },
+        { uuid: 'u2', content: '[Image, 10 x 10 (…)]', kind: 'image', imagePath: '/x/a.png' },
+        { uuid: 'u3', content: 'p1', kind: 'text', imagePath: null }, // casa com o pino
+    ];
+    const m = mergeEntries(pins, history);
+    // pino sempre texto, mesmo herdando uuid do histórico
+    eq('pino kind text', m[0].kind, 'text');
+    eq('pino imagePath null', m[0].imagePath, null);
+    eq('pino uuid herdado', m[0].uuid, 'u3');
+    // item de texto do histórico
+    const txt = m.find(e => e.content === 'txt');
+    eq('hist texto kind', txt.kind, 'text');
+    eq('hist texto imagePath', txt.imagePath, null);
+    // item de imagem do histórico
+    const img = m.find(e => e.uuid === 'u2');
+    eq('hist imagem kind', img.kind, 'image');
+    eq('hist imagem imagePath', img.imagePath, '/x/a.png');
+    check('hist imagem não fixada', img.pinned === false);
+}
+
+// mergeEntries: histórico sem kind/imagePath cai em text/null (defensivo).
+{
+    const m = mergeEntries([], [{ uuid: 'u1', content: 'h' }]);
+    eq('default kind', m[0].kind, 'text');
+    eq('default imagePath', m[0].imagePath, null);
+}
+
 // addPin: prepend + dedup.
 {
     const pins = [{ content: 'a' }];

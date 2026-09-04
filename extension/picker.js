@@ -6,15 +6,17 @@
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import Gio from 'gi://Gio';
 
 import { preview } from './text.js';
 import { filterEntries, clampSelected, nextSelected, keyAction } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
+const THUMB_SIZE = 48; // lado da miniatura de imagem, em px lógicos
 
 export const Picker = GObject.registerClass({
     Signals: {
-        'chosen': { param_types: [GObject.TYPE_STRING] },                        // content
+        'chosen': { param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING] },   // uuid(''=nenhum), content
         'pin-toggled': { param_types: [GObject.TYPE_STRING] },                   // content
         'deleted': { param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING] },  // uuid(''=nenhum), content
         'clear-all': {},
@@ -151,23 +153,21 @@ export const Picker = GObject.registerClass({
                 row.add_style_class_name('selected');
 
             const prefix = i < 9 ? `${i + 1}. ` : '';
-            const label = new St.Label({
-                style_class: 'clip-history-row-label',
-                text: prefix + preview(entry.content),
-                x_expand: true,
-                y_align: Clutter.ActorAlign.CENTER,
-            });
-            label.clutter_text.single_line_mode = true;
-            label.clutter_text.ellipsize = 3; // Pango.EllipsizeMode.END
-            row.add_child(label);
+            if (entry.kind === 'image' && entry.imagePath)
+                row.add_child(this._imageContent(prefix, entry.imagePath, entry.content));
+            else
+                row.add_child(this._textContent(prefix, entry.content));
 
-            const pin = new St.Button({
-                style_class: 'clip-history-icon-button',
-                child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
-                opacity: entry.pinned ? 255 : 90,
-            });
-            pin.connect('clicked', () => this.emit('pin-toggled', entry.content));
-            row.add_child(pin);
+            // Imagens não são fixáveis (seguem o cap do GPaste); ★ só em texto.
+            if (entry.kind !== 'image') {
+                const pin = new St.Button({
+                    style_class: 'clip-history-icon-button',
+                    child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
+                    opacity: entry.pinned ? 255 : 90,
+                });
+                pin.connect('clicked', () => this.emit('pin-toggled', entry.content));
+                row.add_child(pin);
+            }
 
             const del = new St.Button({
                 style_class: 'clip-history-icon-button',
@@ -185,9 +185,54 @@ export const Picker = GObject.registerClass({
         });
     }
 
+    _textContent(prefix, content) {
+        const label = new St.Label({
+            style_class: 'clip-history-row-label',
+            text: prefix + preview(content),
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        label.clutter_text.single_line_mode = true;
+        label.clutter_text.ellipsize = 3; // Pango.EllipsizeMode.END
+        return label;
+    }
+
+    // Linha de imagem: miniatura (via TextureCache, async/cacheado) + legenda
+    // (o display string do GPaste, ex.: "[Image, 1920 x 1080 (…)]").
+    _imageContent(prefix, imagePath, content) {
+        const box = new St.BoxLayout({
+            style_class: 'clip-history-row-label',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const thumb = St.TextureCache.get_default().load_file_async(
+            Gio.File.new_for_path(imagePath), THUMB_SIZE, THUMB_SIZE, scale, 1);
+        // load_file_async pode devolver um Clutter.Actor puro (sem style_class);
+        // envolve num St.Bin pra garantir o estilo (borda/margem) da miniatura.
+        const thumbBin = new St.Bin({
+            style_class: 'clip-history-thumb',
+            child: thumb,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        box.add_child(thumbBin);
+
+        const caption = new St.Label({
+            text: prefix + preview(content),
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        caption.clutter_text.single_line_mode = true;
+        caption.clutter_text.ellipsize = 3; // Pango.EllipsizeMode.END
+        box.add_child(caption);
+        return box;
+    }
+
     _choose(i) {
-        if (i >= 0 && i < this._entries.length)
-            this.emit('chosen', this._entries[i].content);
+        if (i >= 0 && i < this._entries.length) {
+            const e = this._entries[i];
+            this.emit('chosen', e.uuid ?? '', e.content);
+        }
     }
 
     _move(delta) {
@@ -219,10 +264,12 @@ export const Picker = GObject.registerClass({
                 this.emit('deleted', e.uuid ?? '', e.content);
             }
             return Clutter.EVENT_STOP;
-        case 'pin-selected':
-            if (this._entries[this._selected])
-                this.emit('pin-toggled', this._entries[this._selected].content);
+        case 'pin-selected': {
+            const e = this._entries[this._selected];
+            if (e && e.kind !== 'image')   // imagens não são fixáveis
+                this.emit('pin-toggled', e.content);
             return Clutter.EVENT_STOP;
+        }
         default:
             return Clutter.EVENT_PROPAGATE; // deixa digitar na busca
         }

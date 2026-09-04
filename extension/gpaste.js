@@ -27,6 +27,9 @@ export class GPaste {
             Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
             null, NAME, PATH, IFACE, null);
         this._updateId = 0;
+        // Cache uuid -> { kind, imagePath }: o kind de um item nunca muda, então
+        // só consultamos uuids novos a cada refresh (evita N chamadas repetidas).
+        this._meta = new Map();
     }
 
     // Chamada D-Bus assíncrona embrulhada numa Promise. Usa `call`/`call_finish`
@@ -52,11 +55,54 @@ export class GPaste {
         });
     }
 
-    // -> [{ uuid, content }], mesma ordem do GPaste (mais recente primeiro).
+    // -> [{ uuid, content, kind, imagePath }], mesma ordem do GPaste (mais
+    // recente primeiro). `kind` é 'text'|'image'|... (minúsculo); `imagePath` é
+    // o caminho do PNG para imagens, senão null. O enriquecimento (kind/path) é
+    // feito em paralelo e cacheado por uuid; qualquer falha cai em 'text' —
+    // assim, num GPaste que não exponha esses métodos, degrada pro texto.
     async getHistory() {
         const res = await this._call('GetHistory', null);
-        const [items] = res.deepUnpack(); // a(ss)
-        return items.map(([uuid, content]) => ({ uuid, content }));
+        const [items] = res.deepUnpack(); // a(ss): [uuid, content]
+
+        const uuids = items.map(([uuid]) => uuid);
+        await Promise.all(uuids
+            .filter(uuid => !this._meta.has(uuid))
+            .map(uuid => this._loadMeta(uuid)));
+
+        // Poda o cache: mantém só os uuids ainda presentes no histórico.
+        const live = new Set(uuids);
+        for (const uuid of this._meta.keys())
+            if (!live.has(uuid))
+                this._meta.delete(uuid);
+
+        return items.map(([uuid, content]) => {
+            const meta = this._meta.get(uuid) ?? { kind: 'text', imagePath: null };
+            return { uuid, content, kind: meta.kind, imagePath: meta.imagePath };
+        });
+    }
+
+    // Descobre kind (e, se imagem, o caminho do arquivo) de um uuid e cacheia.
+    async _loadMeta(uuid) {
+        let kind = 'text';
+        let imagePath = null;
+        try {
+            const res = await this._call(
+                'GetElementKind', new GLib.Variant('(s)', [uuid]));
+            const [raw] = res.deepUnpack();
+            kind = String(raw || 'Text').toLowerCase();
+            if (kind === 'image')
+                imagePath = await this._getRawElement(uuid);
+        } catch {
+            kind = 'text';   // GPaste sem GetElementKind: trata como texto
+            imagePath = null;
+        }
+        this._meta.set(uuid, { kind, imagePath });
+    }
+
+    async _getRawElement(uuid) {
+        const res = await this._call('GetRawElement', new GLib.Variant('(s)', [uuid]));
+        const [value] = res.deepUnpack();
+        return value || null;
     }
 
     async getHistoryName() {
@@ -68,6 +114,11 @@ export class GPaste {
     // Põe o texto no clipboard (e no topo do histórico, com dedup do GPaste).
     async add(text) {
         await this._call('Add', new GLib.Variant('(s)', [text]));
+    }
+
+    // Recopia um elemento existente (texto OU imagem) pro clipboard, por uuid.
+    async select(uuid) {
+        await this._call('Select', new GLib.Variant('(s)', [uuid]));
     }
 
     async delete(uuid) {

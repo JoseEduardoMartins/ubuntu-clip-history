@@ -30,6 +30,7 @@ export function removePin(pins, content) {
 // Junta pinos (no topo, na ordem do store) com o histórico do GPaste,
 // deduplicando o histórico contra os pinos. Cada pino herda o uuid do item
 // correspondente no histórico (se existir) para permitir Delete/Select.
+// Propaga `kind`/`imagePath` das entradas do histórico; pinos são só texto.
 export function mergeEntries(pins, history) {
     const pinnedContents = new Set(pins.map(p => p.content));
 
@@ -39,12 +40,20 @@ export function mergeEntries(pins, history) {
             content: p.content,
             uuid: match ? match.uuid : null,
             pinned: true,
+            kind: 'text',
+            imagePath: null,
         };
     });
 
     const historyEntries = history
         .filter(h => !pinnedContents.has(h.content))
-        .map(h => ({ content: h.content, uuid: h.uuid, pinned: false }));
+        .map(h => ({
+            content: h.content,
+            uuid: h.uuid,
+            pinned: false,
+            kind: h.kind ?? 'text',
+            imagePath: h.imagePath ?? null,
+        }));
 
     return [...pinnedEntries, ...historyEntries];
 }
