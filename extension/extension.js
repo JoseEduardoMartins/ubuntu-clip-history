@@ -132,8 +132,20 @@ export default class ClipHistoryExtension extends Extension {
     _captureCaret() {
         try {
             const im = Main.inputMethod;
-            // Sem campo de texto focado -> não há caret válido.
-            if (!im || !im.currentFocus)
+            if (!im)
+                return null;
+            // O foco é só pra descartar um _cursorRect obsoleto quando NÃO há
+            // campo de texto focado. O nome da propriedade variou entre versões
+            // do Shell (`currentFocus`/`_currentFocus`), então tolera ambas — e,
+            // se nenhuma existir, segue em frente e confia no validCaret (que
+            // rejeita retângulos zerados). Só aborta quando o foco existe e é
+            // explicitamente nulo.
+            let focus;
+            if ('currentFocus' in im)
+                focus = im.currentFocus;
+            else if ('_currentFocus' in im)
+                focus = im._currentFocus;
+            if (focus === null)
                 return null;
             return validCaret(im._cursorRect);
         } catch {
@@ -252,6 +264,12 @@ export default class ClipHistoryExtension extends Extension {
     // --- Auto-colar via dispositivo virtual do Clutter ---------------------
 
     _schedulePaste() {
+        // Cancela um paste ainda pendente antes de agendar outro, pra não vazar
+        // a source anterior (dois "chosen" em < PASTE_DELAY_MS).
+        if (this._pasteTimeout) {
+            GLib.source_remove(this._pasteTimeout);
+            this._pasteTimeout = 0;
+        }
         this._pasteTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PASTE_DELAY_MS, () => {
             this._sendCtrlV();
             this._pasteTimeout = 0;

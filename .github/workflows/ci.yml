@@ -19,6 +19,11 @@ jobs:
       - name: Testes de lógica (gjs)
         run: bash extension/test/run.sh
 
+      - name: Lint (ESLint)
+        run: |
+          npm install
+          npm run lint
+
       - name: Validar o schema de configurações
         run: glib-compile-schemas --strict --dry-run extension/schemas
 

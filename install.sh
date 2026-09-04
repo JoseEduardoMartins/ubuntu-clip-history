@@ -10,6 +10,8 @@ echo "==> Instalando extensão em $DEST"
 rm -rf "$DEST"
 mkdir -p "$DEST"
 cp -r "$SRC/." "$DEST/"
+# Os testes não fazem parte da extensão instalada (só do repo/CI).
+rm -rf "$DEST/test"
 
 echo "==> Compilando schema"
 glib-compile-schemas "$DEST/schemas"

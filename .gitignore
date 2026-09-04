@@ -1,6 +1,6 @@
 build/
 dist/
+node_modules/
 
 # schema compilado (gerado no install/empacotamento)
-schemas/gschemas.compiled
 extension/schemas/gschemas.compiled

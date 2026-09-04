@@ -1,0 +1,15 @@
+{
+  "name": "ubuntu-clip-history",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ferramentas de dev (lint) da extensão GNOME clip-history. A extensão em si é GJS puro e não depende de Node.",
+  "scripts": {
+    "lint": "eslint extension"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0"
+  }
+}

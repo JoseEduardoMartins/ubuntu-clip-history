@@ -62,8 +62,9 @@ não houver caret disponível, cai no canto inferior direito.
 ## Uso
 
 - Copie textos **ou imagens** normalmente (`Ctrl+C`).
-- `Super+V` abre o histórico. Digite para filtrar, `↑`/`↓` para navegar,
-  `Enter` para colar, `Esc` para fechar, `Alt+1..9` para escolha rápida.
+- `Super+V` abre o histórico. Digite para filtrar, `↑`/`↓` (e `PgUp`/`PgDn`,
+  `Ctrl+Home`/`Ctrl+End`) para navegar, `Enter` para colar, `Alt+1..9` para
+  escolha rápida. `Esc` limpa a busca se houver texto; com a busca vazia, fecha.
 - **Imagens** aparecem como miniatura; escolher recopia a imagem pro clipboard.
 - **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
@@ -103,8 +104,10 @@ e não roda fora de uma sessão; o CI valida a sintaxe desses arquivos, mas o
 comportamento deles é verificado manualmente (`Super+V`).
 
 **CI** (`.github/workflows/ci.yml`, em push na `main` e em todo PR): roda o
-`run.sh`, valida o schema (`glib-compile-schemas --strict`), o `metadata.json`
-e a sintaxe de todos os `.js`.
+`run.sh`, o **ESLint** (`npm run lint` — pega `no-undef`/`no-unused-vars`), valida
+o schema (`glib-compile-schemas --strict`), o `metadata.json` e a sintaxe de todos
+os `.js`. O ESLint é a única dependência Node (dev) do repo; a extensão em si é
+GJS puro.
 
 **Release** (`.github/workflows/release.yml`, ao empurrar uma tag `v*`):
 reexecuta as checagens, empacota `extension/` num

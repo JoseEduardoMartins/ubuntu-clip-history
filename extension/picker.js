@@ -7,12 +7,14 @@ import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import Pango from 'gi://Pango';
 
 import { preview } from './text.js';
 import { filterEntries, clampSelected, nextSelected, keyAction } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
 const THUMB_SIZE = 48; // lado da miniatura de imagem, em px lógicos
+const PAGE_JUMP = 10;  // linhas puladas por PageUp/PageDown
 
 export const Picker = GObject.registerClass({
     Signals: {
@@ -244,7 +246,7 @@ export const Picker = GObject.registerClass({
             y_align: Clutter.ActorAlign.CENTER,
         });
         label.clutter_text.single_line_mode = true;
-        label.clutter_text.ellipsize = 3; // Pango.EllipsizeMode.END
+        label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         return label;
     }
 
@@ -285,7 +287,7 @@ export const Picker = GObject.registerClass({
             y_align: Clutter.ActorAlign.CENTER,
         });
         caption.clutter_text.single_line_mode = true;
-        caption.clutter_text.ellipsize = 3; // Pango.EllipsizeMode.END
+        caption.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         box.add_child(caption);
         return box;
     }
@@ -301,6 +303,22 @@ export const Picker = GObject.registerClass({
         if (this._entries.length === 0)
             return;
         this._setSelected(nextSelected(this._selected, delta, this._entries.length));
+    }
+
+    // Página pra cima/baixo sem dar a volta (ao contrário do _move): gruda no
+    // topo/fim. `dir` é -1 (PageUp) ou +1 (PageDown).
+    _page(dir) {
+        if (this._entries.length === 0)
+            return;
+        this._setSelected(
+            clampSelected(this._selected + dir * PAGE_JUMP, this._entries.length));
+    }
+
+    // Salta pro primeiro/último item (Ctrl+Home / Ctrl+End).
+    _jump(to) {
+        if (this._entries.length === 0)
+            return;
+        this._setSelected(to === 'first' ? 0 : this._entries.length - 1);
     }
 
     // Move a seleção sem reconstruir a lista: só alterna a classe `selected`
@@ -343,6 +361,11 @@ export const Picker = GObject.registerClass({
 
         switch (action.type) {
         case 'dismiss':
+            // Esc limpa a busca primeiro (se houver texto); só fecha se vazia.
+            if (this._search.get_text()) {
+                this._search.set_text('');   // dispara text-changed -> filtro
+                return Clutter.EVENT_STOP;
+            }
             this.emit('dismissed');
             return Clutter.EVENT_STOP;
         case 'choose-selected':
@@ -353,6 +376,12 @@ export const Picker = GObject.registerClass({
             return Clutter.EVENT_STOP;
         case 'move':
             this._move(action.delta);
+            return Clutter.EVENT_STOP;
+        case 'page':
+            this._page(action.delta);
+            return Clutter.EVENT_STOP;
+        case 'jump':
+            this._jump(action.to);
             return Clutter.EVENT_STOP;
         case 'delete-selected':
             if (this._entries[this._selected]) {
@@ -380,6 +409,10 @@ const KEY_MAP = {
     KP_Enter: Clutter.KEY_KP_Enter,
     Up: Clutter.KEY_Up,
     Down: Clutter.KEY_Down,
+    Page_Up: Clutter.KEY_Page_Up,
+    Page_Down: Clutter.KEY_Page_Down,
+    Home: Clutter.KEY_Home,
+    End: Clutter.KEY_End,
     Delete: Clutter.KEY_Delete,
     p: Clutter.KEY_p,
     P: Clutter.KEY_P,
