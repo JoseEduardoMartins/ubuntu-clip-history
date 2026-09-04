@@ -114,9 +114,14 @@ export const Picker = GObject.registerClass({
         this.add_child(footer);
     }
 
-    // Chamado pelo extension com [{ content, uuid, pinned }].
-    setEntries(all) {
+    // Chamado pelo extension com [{ content, uuid, pinned }] e um resolver
+    // opcional `resolveMeta(uuid) -> Promise<{kind, imagePath}>`. O resolver
+    // é injetado (o picker não conhece o gpaste): as linhas nascem como texto
+    // e cada uma vira imagem quando seus metadados chegam (lazy por linha).
+    setEntries(all, { resolveMeta } = {}) {
         this._all = all;
+        if (resolveMeta)
+            this._resolveMeta = resolveMeta;
         this._applyFilter();
         this.grabFocus();
     }
@@ -134,6 +139,11 @@ export const Picker = GObject.registerClass({
     _render() {
         this._list.destroy_all_children();
         this._rows = [];
+        // Token de render: invalida continuações de resolveMeta pendentes quando
+        // a lista é reconstruída (filtro/refresh), pra não fazer upgrade numa
+        // linha que já foi destruída.
+        this._renderToken = (this._renderToken ?? 0) + 1;
+        const token = this._renderToken;
 
         if (this._entries.length === 0) {
             this._list.add_child(new St.Label({
@@ -153,13 +163,18 @@ export const Picker = GObject.registerClass({
                 row.add_style_class_name('selected');
 
             const prefix = i < 9 ? `${i + 1}. ` : '';
-            if (entry.kind === 'image' && entry.imagePath)
-                row.add_child(this._imageContent(prefix, entry.imagePath, entry.content));
-            else
-                row.add_child(this._textContent(prefix, entry.content));
+            const known = entry.kind === 'image' && entry.imagePath;
+
+            // Conteúdo: imagem se já conhecida; senão texto (que pode virar
+            // imagem depois via resolveMeta). Guarda o ator pra poder trocar.
+            const content = known
+                ? this._imageContent(prefix, entry.imagePath, entry.content)
+                : this._textContent(prefix, entry.content);
+            row.add_child(content);
+            row._contentActor = content;
 
             // Imagens não são fixáveis (seguem o cap do GPaste); ★ só em texto.
-            if (entry.kind !== 'image') {
+            if (!known) {
                 const pin = new St.Button({
                     style_class: 'clip-history-icon-button',
                     child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
@@ -167,6 +182,7 @@ export const Picker = GObject.registerClass({
                 });
                 pin.connect('clicked', () => this.emit('pin-toggled', entry.content));
                 row.add_child(pin);
+                row._pinButton = pin;
             }
 
             const del = new St.Button({
@@ -182,7 +198,42 @@ export const Picker = GObject.registerClass({
 
             this._list.add_child(row);
             this._rows.push(row);
+
+            // Lazy: descobre kind/imagePath só agora, por linha. Se for imagem,
+            // faz upgrade da linha de texto (sem bloquear a pintura inicial).
+            if (!known && entry.uuid && this._resolveMeta) {
+                this._resolveMeta(entry.uuid).then(meta => {
+                    if (token !== this._renderToken)   // lista já foi reconstruída
+                        return;
+                    if (!meta || meta.kind !== 'image' || !meta.imagePath)
+                        return;
+                    this._upgradeToImage(row, entry, prefix, meta.imagePath);
+                }).catch(() => {});
+            }
         });
+    }
+
+    // Troca uma linha de texto pela variante imagem (miniatura + legenda) e
+    // remove o botão de pino. Muta a `entry` (kind/imagePath) para que ações de
+    // teclado (Ctrl+P) e futuros re-renders já a tratem como imagem, e para
+    // cachear a descoberta em `this._all`.
+    _upgradeToImage(row, entry, prefix, imagePath) {
+        entry.kind = 'image';
+        entry.imagePath = imagePath;
+
+        if (row._contentActor) {
+            row.remove_child(row._contentActor);
+            row._contentActor.destroy();
+        }
+        const img = this._imageContent(prefix, imagePath, entry.content);
+        row.insert_child_at_index(img, 0);
+        row._contentActor = img;
+
+        if (row._pinButton) {
+            row.remove_child(row._pinButton);
+            row._pinButton.destroy();
+            row._pinButton = null;
+        }
     }
 
     _textContent(prefix, content) {
@@ -206,11 +257,22 @@ export const Picker = GObject.registerClass({
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const thumb = St.TextureCache.get_default().load_file_async(
-            Gio.File.new_for_path(imagePath), THUMB_SIZE, THUMB_SIZE, scale, 1);
-        // load_file_async pode devolver um Clutter.Actor puro (sem style_class);
-        // envolve num St.Bin pra garantir o estilo (borda/margem) da miniatura.
+        // Se o PNG do GPaste sumiu (cache limpo, arquivo movido), mostra um
+        // ícone de "imagem ausente" em vez de uma miniatura vazia.
+        const file = Gio.File.new_for_path(imagePath);
+        let thumb;
+        if (file.query_exists(null)) {
+            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            // load_file_async pode devolver um Clutter.Actor puro (sem
+            // style_class); envolvemos num St.Bin pro estilo da miniatura.
+            thumb = St.TextureCache.get_default().load_file_async(
+                file, THUMB_SIZE, THUMB_SIZE, scale, 1);
+        } else {
+            thumb = new St.Icon({
+                icon_name: 'image-missing-symbolic',
+                icon_size: THUMB_SIZE,
+            });
+        }
         const thumbBin = new St.Bin({
             style_class: 'clip-history-thumb',
             child: thumb,
@@ -238,8 +300,42 @@ export const Picker = GObject.registerClass({
     _move(delta) {
         if (this._entries.length === 0)
             return;
-        this._selected = nextSelected(this._selected, delta, this._entries.length);
-        this._render();
+        this._setSelected(nextSelected(this._selected, delta, this._entries.length));
+    }
+
+    // Move a seleção sem reconstruir a lista: só alterna a classe `selected`
+    // nas linhas afetadas (antes recriava tudo, re-disparando o load de cada
+    // miniatura a cada tecla). Rola a linha nova para a vista.
+    _setSelected(index) {
+        if (!this._rows || this._rows.length === 0)
+            return;
+        const prev = this._rows[this._selected];
+        if (prev)
+            prev.remove_style_class_name('selected');
+        this._selected = index;
+        const next = this._rows[index];
+        if (next) {
+            next.add_style_class_name('selected');
+            this._scrollToSelected();
+        }
+    }
+
+    // Garante que a linha selecionada esteja visível dentro do ScrollView.
+    _scrollToSelected() {
+        const row = this._rows[this._selected];
+        if (!row)
+            return;
+        const adj = this._scroll.vadjustment ??
+            this._scroll.get_vscroll_bar?.().adjustment;
+        if (!adj)
+            return;
+        const box = row.get_allocation_box();
+        const top = box.y1;
+        const bottom = box.y2;
+        if (top < adj.value)
+            adj.value = top;
+        else if (bottom > adj.value + adj.page_size)
+            adj.value = bottom - adj.page_size;
     }
 
     _onKeyPress(event) {
