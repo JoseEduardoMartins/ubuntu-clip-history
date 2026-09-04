@@ -7,11 +7,12 @@ spec datado em
 
 ## Visão geral
 
-Clip History é uma **extensão do GNOME Shell** (GJS/ESM) que expõe um histórico
-de área de transferência estilo `Win+V`. Ela **não guarda o histórico**: usa o
-**GPaste** (daemon já existente) como backend via D-Bus. A extensão é a UI e a
-orquestração — abre um popup com `Super+V`, lista o histórico, e ao escolher um
-item põe no clipboard e injeta `Ctrl+V` no app anterior.
+Clip History é uma **extensão do GNOME Shell** (GJS/ESM, Shell 46/47/48) que
+expõe um histórico de área de transferência estilo `Win+V`. Ela **não guarda o
+histórico**: usa o **GPaste** (daemon já existente) como backend via D-Bus. A
+extensão é a UI e a orquestração — abre um popup com `Super+V` ancorado no caret
+do campo focado, lista o histórico (texto **e imagens**), e ao escolher um item
+recopia para o clipboard e injeta `Ctrl+V` no app anterior.
 
 Ser uma extensão (e não um app GTK) é a decisão central: no Wayland só o
 processo do Shell pode posicionar `actors` na tela e injetar teclas — um
@@ -28,12 +29,12 @@ existe para tornar testável o que carrega a complexidade real.
 
 | Arquivo | Papel | Acoplamento |
 |---|---|---|
-| `extension.js` | Ciclo de vida (`enable`/`disable`), atalho, orquestração dos handlers, auto-paste via device virtual | Shell (Meta, Shell, Clutter, Main) |
-| `gpaste.js` | Wrapper fino do D-Bus do GPaste: `getHistory`, `add`, `delete`, `empty`, sinal `Update` | Gio/GLib |
-| `picker.js` | UI do popup (`St`): header, busca, lista rolável, footer; navegação por teclado; emite sinais | St/Clutter/GObject |
+| `extension.js` | Ciclo de vida (`enable`/`disable`), atalho, captura do caret, orquestração dos handlers, auto-paste via device virtual | Shell (Meta, Shell, Clutter, Main) |
+| `gpaste.js` | Wrapper fino do D-Bus do GPaste (**chamadas assíncronas**): `getHistory` (enriquecido com `kind`/`imagePath`), `add`, `select`, `delete`, `empty`, sinal `Update` | Gio/GLib |
+| `picker.js` | UI do popup (`St`): header, busca, lista rolável (texto + **miniatura de imagem** via `TextureCache`), footer; navegação por teclado; emite sinais | St/Clutter/GObject/Gio |
 | `pickerLogic.js` | **Puro:** `filterEntries`, `clampSelected`, `nextSelected`, `keyAction` | nenhum |
-| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries`; **+ persistência** JSON via Gio | misto (lógica pura + Gio) |
-| `position.js` | **Puro:** `computePosition` — onde o popup aparece dado caret + work area | nenhum |
+| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`); **+ persistência** JSON via Gio | misto (lógica pura + Gio) |
+| `position.js` | **Puro:** `computePosition`, `validCaret`, `pickMonitor` — onde o popup aparece dado caret + work area (multi-monitor) | nenhum |
 | `text.js` | **Puro:** `preview` — colapsa/apara texto para o label da linha | nenhum |
 | `prefs.js` | Tela de preferências (só o atalho), Adw/Gtk | Adw/Gtk |
 | `metadata.json` | UUID, `shell-version`, `settings-schema` | — |
@@ -46,14 +47,23 @@ ninguém (nem o Shell, nem `extension.js`).
 ## Fluxo de dados
 
 **Abrir** (`Super+V` → `_toggle` → `_open`):
-1. `extension.js` cria o `Picker` e conecta os sinais dele.
-2. Lê o histórico via `gpaste.getHistory()` e funde com os pinos
-   (`mergeEntries`) → `picker.setEntries(...)`.
-3. `computePosition` decide x,y (hoje sempre canto inferior direito — o caret
-   ainda é um TODO, veja abaixo); `pushModal` dá foco ao popup.
+1. **Captura o caret ANTES de tudo** (`_captureCaret`): assim que o popup pega
+   o foco, o input method passa a apontar pro nosso `St.Entry` e o caret do app
+   original se perde. A fonte é `Main.inputMethod._cursorRect` (mesma âncora do
+   popup de candidatos do IBus, já em coords de stage) — API privada, acesso
+   defensivo: qualquer ausência/erro cai em `null`.
+2. Cria o `Picker`, conecta os sinais e dá foco (`pushModal` + `grabFocus`).
+3. Lê o histórico **de forma assíncrona** (`_loadEntries`, não bloqueia o
+   compositor) via `gpaste.getHistory()` e funde com os pinos (`mergeEntries`)
+   → `picker.setEntries(...)`.
+4. Só no primeiro load, `_position` ancora o popup: `pickMonitor` escolhe o
+   monitor que contém o caret e `computePosition` decide x,y (abaixo do caret,
+   ou acima se não couber; **sem caret válido → canto inferior direito**).
 
 **Escolher → colar** (`chosen`):
-1. `gpaste.add(content)` — vira o clipboard e sobe ao topo (dedup do GPaste).
+1. `gpaste.select(uuid)` recopia o elemento existente (texto **ou imagem**) pro
+   clipboard, subindo ao topo (dedup do GPaste). Sem uuid (pino de texto que já
+   saiu do histórico), faz `gpaste.add(content)` por texto.
 2. Fecha o popup (`popModal` + destroy) → o Mutter devolve o foco ao app anterior.
 3. Após ~90 ms, injeta `Ctrl+V` por um **device virtual do Clutter**
    (`seat.create_virtual_device`) — o atraso garante que o foco já voltou.
@@ -102,10 +112,15 @@ extensão nova só carrega após **logout/login**.
 
 ## Restrições e pontos em aberto
 
-- **Caret ainda não capturado:** `extension.js:_position` passa `caret: null`, então
-  o popup abre sempre no canto inferior direito. `computePosition` já suporta o
-  modo "perto do caret"; falta a fonte do retângulo (spike do IBus). É o TODO
-  marcado no código.
+- **Caret via API privada:** a âncora do popup vem de `Main.inputMethod._cursorRect`
+  (não é API pública/estável do Shell). O acesso é defensivo — se a propriedade
+  sumir ou mudar entre versões, `_captureCaret` cai em `null` e o popup volta ao
+  canto inferior direito. Independe de AT-SPI.
+- **Imagens não são fixáveis:** o pino é um store de texto (dedup por `content`);
+  itens `kind === 'image'` não expõem o botão `★`. Imagens vivem só enquanto
+  estão no histórico do GPaste (sujeitas ao cap de 100).
 - **GPaste é obrigatório:** sem o daemon, `getHistory` falha e a lista fica
-  vazia — o `enable()` sobrevive de propósito (não vai a estado ERROR).
-- **Só texto**, últimos 100 itens (limite do GPaste); pinos escapam do limite.
+  vazia — o `enable()` sobrevive de propósito (não vai a estado ERROR). Um GPaste
+  que não exponha `GetElementKind`/`GetRawElement` degrada tudo para texto.
+- **Texto e imagens**, últimos 100 itens (limite do GPaste); pinos (de texto)
+  escapam do limite. Filtro de senha fica para versões futuras.
