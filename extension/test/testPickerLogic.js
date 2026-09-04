@@ -93,7 +93,10 @@ deepEq('Return -> choose-selected', keyAction(KEYS.Return, NONE, KEYS), { type: 
 deepEq('KP_Enter -> choose-selected', keyAction(KEYS.KP_Enter, NONE, KEYS), { type: 'choose-selected' });
 deepEq('Up -> move -1', keyAction(KEYS.Up, NONE, KEYS), { type: 'move', delta: -1 });
 deepEq('Down -> move +1', keyAction(KEYS.Down, NONE, KEYS), { type: 'move', delta: +1 });
-deepEq('Delete -> delete-selected', keyAction(KEYS.Delete, NONE, KEYS), { type: 'delete-selected' });
+
+// Ctrl+Delete apaga o item; Delete sozinho é passthrough (edita a busca).
+deepEq('Ctrl+Delete -> delete-selected', keyAction(KEYS.Delete, KEYS.CONTROL_MASK, KEYS), { type: 'delete-selected' });
+deepEq('Delete sem ctrl -> passthrough', keyAction(KEYS.Delete, NONE, KEYS), { type: 'passthrough' });
 
 // Ctrl+P (minúsculo e maiúsculo) -> pin.
 deepEq('Ctrl+p -> pin', keyAction(KEYS.p, KEYS.CONTROL_MASK, KEYS), { type: 'pin-selected' });
