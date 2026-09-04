@@ -76,6 +76,10 @@ const KEYS = {
     KP_Enter: 0xff8d,
     Up: 0xff52,
     Down: 0xff54,
+    Page_Up: 0xff55,
+    Page_Down: 0xff56,
+    Home: 0xff50,
+    End: 0xff57,
     Delete: 0xffff,
     p: 0x070,
     P: 0x050,
@@ -93,6 +97,16 @@ deepEq('Up -> move -1', keyAction(KEYS.Up, NONE, KEYS), { type: 'move', delta: -
 deepEq('Down -> move +1', keyAction(KEYS.Down, NONE, KEYS), { type: 'move', delta: +1 });
 // Modificadores nas setas são ignorados (o switch casa antes das checagens).
 deepEq('Ctrl+Up ainda é move', keyAction(KEYS.Up, KEYS.CONTROL_MASK, KEYS), { type: 'move', delta: -1 });
+
+// PageUp/PageDown navegam a lista (sem modificador — busca de 1 linha não usa).
+deepEq('PageUp -> page -1', keyAction(KEYS.Page_Up, NONE, KEYS), { type: 'page', delta: -1 });
+deepEq('PageDown -> page +1', keyAction(KEYS.Page_Down, NONE, KEYS), { type: 'page', delta: +1 });
+
+// Home/End sem Ctrl editam a busca (passthrough); com Ctrl saltam na lista.
+deepEq('Home sem ctrl -> passthrough', keyAction(KEYS.Home, NONE, KEYS), { type: 'passthrough' });
+deepEq('End sem ctrl -> passthrough', keyAction(KEYS.End, NONE, KEYS), { type: 'passthrough' });
+deepEq('Ctrl+Home -> jump first', keyAction(KEYS.Home, KEYS.CONTROL_MASK, KEYS), { type: 'jump', to: 'first' });
+deepEq('Ctrl+End -> jump last', keyAction(KEYS.End, KEYS.CONTROL_MASK, KEYS), { type: 'jump', to: 'last' });
 
 // Ctrl+Delete apaga o item; Delete sozinho é passthrough (edita a busca).
 deepEq('Ctrl+Delete -> delete-selected', keyAction(KEYS.Delete, KEYS.CONTROL_MASK, KEYS), { type: 'delete-selected' });

@@ -112,9 +112,11 @@ para módulos puros (como `pickerLogic.js`) — ou injetar as dependências, com
 
 ## CI/CD
 
-- **`.github/workflows/ci.yml`** (push na `main` + PR): `run.sh`, valida o
-  schema (`glib-compile-schemas --strict`), o `metadata.json`
-  (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os `.js`.
+- **`.github/workflows/ci.yml`** (push na `main` + PR): `run.sh`, ESLint
+  (`npm run lint`, config flat em `eslint.config.js` com os globais do GJS),
+  valida o schema (`glib-compile-schemas --strict`), o `metadata.json`
+  (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os `.js`. O ESLint
+  é a única dependência Node (dev); nada disso vai pro pacote da extensão.
 - **`.github/workflows/release.yml`** (tag `v*`): reexecuta as checagens,
   empacota `extension/` num zip (schema compilado, sem `test/`) e publica um
   GitHub Release com o anexo.

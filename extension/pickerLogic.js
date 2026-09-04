@@ -39,7 +39,9 @@ export function nextSelected(selected, delta, length) {
 //   { type: 'dismiss' }
 //   { type: 'choose-selected' }
 //   { type: 'choose-index', index }   // Alt+1..9 (0-based)
-//   { type: 'move', delta }           // -1 / +1
+//   { type: 'move', delta }           // -1 / +1 (com wrap)
+//   { type: 'page', delta }           // -1 / +1 página (PageUp/PageDown, sem wrap)
+//   { type: 'jump', to }              // 'first' / 'last' (Ctrl+Home/Ctrl+End)
 //   { type: 'delete-selected' }       // Ctrl+Delete
 //   { type: 'pin-selected' }
 //   { type: 'passthrough' }           // deixa digitar na busca
@@ -57,6 +59,11 @@ export function keyAction(symbol, state, KEYS) {
         return { type: 'move', delta: -1 };
     case KEYS.Down:
         return { type: 'move', delta: +1 };
+    // PageUp/PageDown não têm uso numa busca de uma linha -> navegam a lista.
+    case KEYS.Page_Up:
+        return { type: 'page', delta: -1 };
+    case KEYS.Page_Down:
+        return { type: 'page', delta: +1 };
     }
 
     // Ctrl+Delete apaga o item selecionado. Delete sozinho cai em passthrough:
@@ -64,6 +71,13 @@ export function keyAction(symbol, state, KEYS) {
     // exigir Ctrl evita a ambiguidade de apagar item vs. apagar caractere.
     if (ctrl && symbol === KEYS.Delete)
         return { type: 'delete-selected' };
+
+    // Home/End sem modificador editam a busca; com Ctrl saltam na lista (mesma
+    // lógica do Ctrl+Delete: exigir Ctrl evita clobrar a edição do texto).
+    if (ctrl && symbol === KEYS.Home)
+        return { type: 'jump', to: 'first' };
+    if (ctrl && symbol === KEYS.End)
+        return { type: 'jump', to: 'last' };
 
     if (ctrl && (symbol === KEYS.p || symbol === KEYS.P))
         return { type: 'pin-selected' };
