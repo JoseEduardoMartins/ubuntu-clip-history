@@ -18,45 +18,65 @@ export class GPaste {
         // estourava enable() e deixava a extensão em estado ERROR pela sessão
         // toda. Sem auto-start-at-construction, o proxy sobe o GPaste (serviço
         // systemd habilitado) só na primeira chamada real (getHistory).
+        // DO_NOT_LOAD_PROPERTIES: não usamos nenhuma property do GPaste, e sem
+        // isso o new_sync faria um GetAll síncrono (round-trip que poderia
+        // bloquear o compositor na construção).
         this._proxy = Gio.DBusProxy.new_sync(
-            bus, Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION, null,
-            NAME, PATH, IFACE, null);
+            bus,
+            Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION |
+            Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES,
+            null, NAME, PATH, IFACE, null);
         this._updateId = 0;
     }
 
+    // Chamada D-Bus assíncrona embrulhada numa Promise. Usa `call`/`call_finish`
+    // (não `call_sync`): uma chamada síncrona no processo do Shell congelaria o
+    // compositor inteiro se o daemon do GPaste travasse. Não usamos
+    // `Gio._promisify` de propósito — ele altera o prototype global do
+    // DBusProxy no gnome-shell; este wrapper fica contido na extensão.
+    _call(method, params) {
+        return new Promise((resolve, reject) => {
+            if (!this._proxy) {
+                reject(new Error('GPaste proxy já destruído'));
+                return;
+            }
+            this._proxy.call(
+                method, params, Gio.DBusCallFlags.NONE, -1, null,
+                (proxy, res) => {
+                    try {
+                        resolve(proxy.call_finish(res));
+                    } catch (e) {
+                        reject(e);
+                    }
+                });
+        });
+    }
+
     // -> [{ uuid, content }], mesma ordem do GPaste (mais recente primeiro).
-    getHistory() {
-        const res = this._proxy.call_sync(
-            'GetHistory', null, Gio.DBusCallFlags.NONE, -1, null);
+    async getHistory() {
+        const res = await this._call('GetHistory', null);
         const [items] = res.deepUnpack(); // a(ss)
         return items.map(([uuid, content]) => ({ uuid, content }));
     }
 
-    getHistoryName() {
-        const res = this._proxy.call_sync(
-            'GetHistoryName', null, Gio.DBusCallFlags.NONE, -1, null);
+    async getHistoryName() {
+        const res = await this._call('GetHistoryName', null);
         const [name] = res.deepUnpack();
         return name;
     }
 
     // Põe o texto no clipboard (e no topo do histórico, com dedup do GPaste).
-    add(text) {
-        this._proxy.call_sync(
-            'Add', new GLib.Variant('(s)', [text]),
-            Gio.DBusCallFlags.NONE, -1, null);
+    async add(text) {
+        await this._call('Add', new GLib.Variant('(s)', [text]));
     }
 
-    delete(uuid) {
-        this._proxy.call_sync(
-            'Delete', new GLib.Variant('(s)', [uuid]),
-            Gio.DBusCallFlags.NONE, -1, null);
+    async delete(uuid) {
+        await this._call('Delete', new GLib.Variant('(s)', [uuid]));
     }
 
-    empty() {
-        const name = this.getHistoryName();
-        this._proxy.call_sync(
-            'EmptyHistory', new GLib.Variant('(s)', [name]),
-            Gio.DBusCallFlags.NONE, -1, null);
+    async empty() {
+        const name = await this.getHistoryName();
+        await this._call('EmptyHistory', new GLib.Variant('(s)', [name]));
     }
 
     // Chama `cb` a cada mutação do histórico (ingest, delete, empty, select).

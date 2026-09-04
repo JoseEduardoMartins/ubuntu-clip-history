@@ -93,11 +93,11 @@ export default class ClipHistoryExtension extends Extension {
         Main.layoutManager.uiGroup.add_child(picker);
         this._picker = picker;
 
-        this._loadEntries();
-        this._position();
-
+        // O popup abre e recebe foco na hora; a leitura do histórico é
+        // assíncrona (não bloqueia o compositor) e posiciona quando chega.
         this._grab = Main.pushModal(picker, { actionMode: Shell.ActionMode.NORMAL });
         picker.grabFocus();
+        this._loadEntries(true);
     }
 
     _close() {
@@ -111,18 +111,24 @@ export default class ClipHistoryExtension extends Extension {
         this._picker = null;
     }
 
-    _loadEntries() {
+    // `position` só no primeiro load (ao abrir): aí a altura já reflete os
+    // itens. Nos refreshes ao vivo não reposiciona, pra não pular o popup.
+    async _loadEntries(position = false) {
         if (!this._picker)
             return;
         // Tenta (re)conectar caso o GPaste não estivesse pronto no enable().
         this._connectGPaste();
         let history = [];
         try {
-            history = this._gpaste ? this._gpaste.getHistory() : [];
+            history = this._gpaste ? await this._gpaste.getHistory() : [];
         } catch (e) {
             logError(e, 'clip-history: falha ao ler o histórico do GPaste');
         }
+        if (!this._picker) // fechou enquanto carregava
+            return;
         this._picker.setEntries(mergeEntries(this._pins, history));
+        if (position)
+            this._position();
     }
 
     _refresh() {
@@ -144,9 +150,15 @@ export default class ClipHistoryExtension extends Extension {
         this._picker.set_position(x, y);
     }
 
-    _onChosen(content) {
-        if (this._gpaste)
-            this._gpaste.add(content);   // vira o clipboard + sobe ao topo
+    async _onChosen(content) {
+        // Espera o Add concluir (clipboard já dono) antes de fechar e injetar
+        // o Ctrl+V — senão a colagem correria contra o set do clipboard.
+        try {
+            if (this._gpaste)
+                await this._gpaste.add(content);   // vira o clipboard + sobe ao topo
+        } catch (e) {
+            logError(e, 'clip-history: falha no Add do GPaste');
+        }
         this._close();
         this._schedulePaste();
     }
@@ -159,21 +171,30 @@ export default class ClipHistoryExtension extends Extension {
         this._refresh();
     }
 
-    _onDeleted(uuid, content) {
-        if (uuid && this._gpaste)
-            this._gpaste.delete(uuid);
+    async _onDeleted(uuid, content) {
+        // Remove o pino já (local, imediato); o GPaste some via Delete async.
         if (isPinned(this._pins, content)) {
             this._pins = removePin(this._pins, content);
             savePins(this._pinsPath, this._pins);
         }
+        try {
+            if (uuid && this._gpaste)
+                await this._gpaste.delete(uuid);
+        } catch (e) {
+            logError(e, 'clip-history: falha no Delete do GPaste');
+        }
         this._refresh();
     }
 
-    _onClearAll() {
-        if (this._gpaste)
-            this._gpaste.empty();
+    async _onClearAll() {
         this._pins = [];
         savePins(this._pinsPath, this._pins);
+        try {
+            if (this._gpaste)
+                await this._gpaste.empty();
+        } catch (e) {
+            logError(e, 'clip-history: falha ao limpar o GPaste');
+        }
         this._refresh();
     }
 
