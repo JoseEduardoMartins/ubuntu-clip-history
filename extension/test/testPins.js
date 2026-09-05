@@ -178,6 +178,33 @@ check('pinsPath termina em clip-history/pins.json', pinsPath().endsWith('/clip-h
     GLib.rmdir(base);
 }
 
+// Coalescing: várias gravações rápidas SEM await entre elas devem terminar com o
+// ÚLTIMO estado chamado no disco — mesmo que as escrituras assíncronas completem
+// fora de ordem. Sem coalescing, um write anterior pode terminar por último e
+// deixar um estado obsoleto (ex.: um pino "ressuscitado", ou um segredo).
+{
+    const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-coalesce-${Date.now()}.json`]);
+    savePins(path, [{ content: 'v1', created_at: '2026-09-01' }]);
+    savePins(path, [{ content: 'v2', created_at: '2026-09-01' }]);
+    const last = savePins(path, [{ content: 'v3', created_at: '2026-09-01' }]);
+    await last;   // resolve só quando o estado v3 (ou mais novo) está no disco
+    const loaded = loadPins(path);
+    eq('coalescing: último estado vence (len)', loaded.length, 1);
+    eq('coalescing: conteúdo é o último chamado', loaded[0].content, 'v3');
+    GLib.unlink(path);
+}
+
+// Coalescing — caso "pino → despino" rápido: o disco deve refletir o despino
+// (lista vazia), não o pino que foi chamado antes.
+{
+    const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-pinunpin-${Date.now()}.json`]);
+    savePins(path, [{ content: 'segredo', created_at: '2026-09-01' }]); // pino
+    const unpin = savePins(path, []);                                    // despino
+    await unpin;
+    eq('pino→despino: disco reflete o despino', loadPins(path).length, 0);
+    GLib.unlink(path);
+}
+
 // loadPins de arquivo inexistente -> lista vazia (sem erro).
 eq('load inexistente vazio', loadPins('/nao/existe/pins.json').length, 0);
 
