@@ -35,7 +35,8 @@ existe para tornar testável o que carrega a complexidade real.
 | `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`)/`dropKnownPasswords`; **+ persistência** em `~/.local/share/clip-history/pins.json` via Gio (`loadPins` valida o shape de cada pino) | misto (lógica pura + Gio) |
 | `position.js` | **Puro:** `computePosition`, `validCaret`, `pickMonitor` — onde o popup aparece dado caret + work area (multi-monitor) | nenhum |
 | `text.js` | **Puro:** `preview` — colapsa/apara texto para o label da linha | nenhum |
-| `prefs.js` | Tela de preferências (só o atalho), Adw/Gtk | Adw/Gtk |
+| `paste.js` | **Puro:** `isTerminal(wmClass)` — se a janela focada é um terminal (colar = `Ctrl+Shift+V` em vez de `Ctrl+V`) | nenhum |
+| `prefs.js` | Tela de preferências (só o atalho, **editável** via captura de tecla), Adw/Gtk/Gdk | Adw/Gtk/Gdk |
 | `metadata.json` | UUID, `shell-version`, `settings-schema` | — |
 | `schemas/…gschema.xml` | Chave `toggle-clip-history` (default `<Super>v`) | — |
 | `stylesheet.css` | Estilo do popup | — |
@@ -66,14 +67,19 @@ ninguém (nem o Shell, nem `extension.js`).
    clipboard, subindo ao topo (dedup do GPaste). Sem uuid (pino de texto que já
    saiu do histórico), faz `gpaste.add(content)` por texto.
 2. Fecha o popup (`popModal` + destroy) → o Mutter devolve o foco ao app anterior.
-3. Após ~90 ms, injeta `Ctrl+V` por um **device virtual do Clutter**
-   (`seat.create_virtual_device`) — o atraso garante que o foco já voltou.
+3. Após ~90 ms, injeta a colagem por um **device virtual do Clutter**
+   (`seat.create_virtual_device`) — o atraso garante que o foco já voltou. A
+   combinação é `Ctrl+V`, ou `Ctrl+Shift+V` se a janela que estava focada ao
+   abrir o popup for um terminal (`isTerminal` sobre o `wm_class` capturado em
+   `_open`, junto do caret — antes do `pushModal` roubar o foco).
 
 **Pino / excluir / limpar** (`pin-toggled` / `deleted` / `clear-all`):
 - Pino: alterna via `addPin`/`removePin`, persiste com `savePins`, refresca.
 - Excluir: `gpaste.delete(uuid)` (se houver uuid) e remove do pino se estava
   fixado.
-- Limpar: `gpaste.empty()` + zera os pinos.
+- Limpar: `gpaste.empty()` + zera os pinos. Como é irreversível, o botão do
+  rodapé confirma em dois passos (o 1º clique arma por ~3 s, o 2º emite
+  `clear-all`); a lógica de armar/desarmar e o timer ficam no `picker.js`.
 
 **Refresh ao vivo:** `gpaste.connectUpdate(...)` dispara em toda mutação do
 histórico; se o popup está aberto, `extension.js` recarrega as entradas.
@@ -90,7 +96,8 @@ para a vista — não reconstrói a lista. O mapa de constantes do Clutter fica 
 
 A lógica pura é testada com o interpretador `gjs`; o runner
 `extension/test/run.sh` roda os suites `testPins`, `testPosition`, `testText`,
-`testPickerLogic` e `testGpaste`. Todos compartilham o mini-harness
+`testPickerLogic`, `testGpaste` e `testPaste` (o `isTerminal` — terminais
+conhecidos, case-insensitive, e entradas inválidas). Todos compartilham o mini-harness
 `extension/test/assert.js` (`eq`/`deepEq`/`check`/`report`), que conta os asserts
 e sai com status != 0 se algum falhar.
 
@@ -161,5 +168,11 @@ extensão nova só carrega após **logout/login**.
   que não exponha `GetElementKind`/`GetRawElement` degrada tudo para texto.
 - **Busca com debounce:** o campo de busca refiltra ~120ms depois da última
   tecla (não a cada caractere), evitando reconstruir a lista inteira na digitação.
+- **Auto-paste em terminais:** o colar em terminais é `Ctrl+Shift+V`. A extensão
+  decide pela `isTerminal(wm_class)`, cuja lista de terminais conhecidos é
+  **fixa** (`paste.js`) — um terminal fora dela recebe `Ctrl+V` e pode não colar
+  (degradação segura: o usuário cola com o atalho do próprio terminal). O
+  `wm_class` vem de `global.display.get_focus_window()`, acesso defensivo (sem
+  janela focada → `null` → `Ctrl+V`).
 - **Texto, imagens e senhas**, últimos 100 itens (limite do GPaste); pinos (de
   texto) escapam do limite.
