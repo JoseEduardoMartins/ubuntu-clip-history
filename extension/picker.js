@@ -19,6 +19,9 @@ const THUMB_SIZE = 48;          // lado da miniatura de imagem, em px lógicos
 const PAGE_JUMP = 10;           // linhas puladas por PageUp/PageDown
 const FILTER_DEBOUNCE_MS = 120; // espera parar de digitar antes de refiltrar
 const PASSWORD_MASK = '••••••••'; // legenda dos itens de senha (nunca o valor)
+const CLEAR_LABEL = 'Limpar tudo';
+const CLEAR_CONFIRM_LABEL = '⚠ Confirmar limpeza?';
+const CLEAR_CONFIRM_MS = 3000;  // janela p/ o 2º clique antes de reverter
 
 export const Picker = GObject.registerClass({
     Signals: {
@@ -47,9 +50,12 @@ export const Picker = GObject.registerClass({
         this._buildList();
         this._buildFooter();
 
-        // Cancela um refiltro pendente ao destruir (o popup fecha antes do
-        // debounce disparar).
-        this.connect('destroy', () => this._cancelFilter());
+        // Cancela timers pendentes ao destruir (o popup fecha antes deles
+        // dispararem): o debounce da busca e a confirmação do "Limpar tudo".
+        this.connect('destroy', () => {
+            this._cancelFilter();
+            this._cancelClearConfirm();
+        });
 
         this.connect('key-press-event', (_a, event) => this._onKeyPress(event));
         this.connect('button-press-event', (_a, event) => this._onButtonPress(event));
@@ -148,14 +154,53 @@ export const Picker = GObject.registerClass({
 
     _buildFooter() {
         const footer = new St.BoxLayout({ style_class: 'clip-history-footer' });
-        const clear = new St.Button({
+        this._clearButton = new St.Button({
             style_class: 'clip-history-clear',
-            label: 'Limpar tudo',
+            label: CLEAR_LABEL,
             x_expand: true,
         });
-        clear.connect('clicked', () => this.emit('clear-all'));
-        footer.add_child(clear);
+        // Limpar tudo é irreversível (apaga histórico + favoritos), então o
+        // primeiro clique só arma: o botão vira "Confirmar limpeza?" por alguns
+        // segundos e só o segundo clique (armado) emite de fato. Some sozinho.
+        this._clearButton.connect('clicked', () => this._onClearClicked());
+        footer.add_child(this._clearButton);
         this.add_child(footer);
+    }
+
+    // --- Confirmação em dois passos do "Limpar tudo" -----------------------
+
+    _onClearClicked() {
+        if (this._clearArmed) {
+            this._cancelClearConfirm();
+            this.emit('clear-all');
+            return;
+        }
+        this._clearArmed = true;
+        this._clearButton.label = CLEAR_CONFIRM_LABEL;
+        this._clearButton.add_style_class_name('confirming');
+        this._clearTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, CLEAR_CONFIRM_MS, () => {
+                this._clearTimeout = 0;
+                this._disarmClear();
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    // Volta o botão ao estado normal (rótulo + estilo). Não mexe no timeout.
+    _disarmClear() {
+        this._clearArmed = false;
+        if (this._clearButton) {
+            this._clearButton.label = CLEAR_LABEL;
+            this._clearButton.remove_style_class_name('confirming');
+        }
+    }
+
+    _cancelClearConfirm() {
+        if (this._clearTimeout) {
+            GLib.source_remove(this._clearTimeout);
+            this._clearTimeout = 0;
+        }
+        this._disarmClear();
     }
 
     // Chamado pelo extension com [{ content, uuid, pinned }] e um resolver
