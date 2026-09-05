@@ -86,6 +86,7 @@ export const Picker = GObject.registerClass({
         }));
         const close = new St.Button({
             style_class: 'clip-history-icon-button',
+            accessible_name: 'Fechar',
             child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16 }),
         });
         close.connect('clicked', () => this.emit('dismissed'));
@@ -207,12 +208,15 @@ export const Picker = GObject.registerClass({
     // opcional `resolveMeta(uuid) -> Promise<{kind, imagePath}>`. O resolver
     // é injetado (o picker não conhece o gpaste): as linhas nascem como texto
     // e cada uma vira imagem quando seus metadados chegam (lazy por linha).
-    setEntries(all, { resolveMeta } = {}) {
+    setEntries(all, { resolveMeta, error = false } = {}) {
         // Preserva a seleção pelo ITEM (não pelo índice): num refresh ao vivo um
         // item novo no topo empurraria a lista e a seleção por índice apontaria
         // pro item errado. Guarda a identidade do item atual e reencontra abaixo.
         const preserveKey = entryKey(this._entries[this._selected]);
         this._all = all;
+        // Lista vazia por falha do GPaste -> estado vazio mostra diagnóstico em
+        // vez de "Nada aqui ainda." (ver _render).
+        this._error = error;
         if (resolveMeta)
             this._resolveMeta = resolveMeta;
         this._applyFilter(preserveKey);
@@ -244,7 +248,9 @@ export const Picker = GObject.registerClass({
         if (this._entries.length === 0) {
             this._list.add_child(new St.Label({
                 style_class: 'clip-history-empty',
-                text: 'Nada aqui ainda.',
+                text: this._error
+                    ? 'GPaste indisponível. Instale/ative o gpaste-2 (sudo apt install gpaste-2).'
+                    : 'Nada aqui ainda.',
             }));
             return;
         }
@@ -280,6 +286,7 @@ export const Picker = GObject.registerClass({
             if (isPinnable(entry)) {
                 const pin = new St.Button({
                     style_class: 'clip-history-icon-button',
+                    accessible_name: entry.pinned ? 'Desfixar' : 'Fixar',
                     child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
                     opacity: entry.pinned ? 255 : 90,
                 });
@@ -290,6 +297,7 @@ export const Picker = GObject.registerClass({
 
             const del = new St.Button({
                 style_class: 'clip-history-icon-button',
+                accessible_name: 'Excluir',
                 child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 14 }),
             });
             del.connect('clicked', () => this.emit('deleted', entry.uuid ?? '', entry.content));
