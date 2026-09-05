@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.1.0...v1.1.1) (2026-09-05)
+
+
+### Bug Fixes
+
+* robustez do picker, pinos e preview ([3ff6b6b](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/3ff6b6b0dfa8821359b6983abc715698d97189c9))
+
 # [1.1.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.0.0...v1.1.0) (2026-09-04)
 
 
