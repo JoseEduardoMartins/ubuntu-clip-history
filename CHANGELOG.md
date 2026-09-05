@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.2.0...v1.3.0) (2026-09-05)
+
+
+### Bug Fixes
+
+* **picker:** oculta itens de senha da busca ([8d74cf8](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/8d74cf839c2b44e02db74d22e06ad34a8ea8aeae))
+
+
+### Features
+
+* **picker:** distingue GPaste indisponível e rotula botões ([ec9cdbc](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/ec9cdbc349953a490d45009499abd8ba2b431f0f))
+
 # [1.2.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.1.1...v1.2.0) (2026-09-05)
 
 
