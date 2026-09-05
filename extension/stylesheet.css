@@ -86,3 +86,14 @@
 .clip-history-clear:hover {
     background-color: rgba(255, 80, 80, 0.14);
 }
+
+/* Estado armado: primeiro clique pediu confirmação, o segundo apaga. */
+.clip-history-clear.confirming {
+    background-color: rgba(255, 80, 80, 0.22);
+    color: #ffffff;
+    font-weight: bold;
+}
+
+.clip-history-clear.confirming:hover {
+    background-color: rgba(255, 80, 80, 0.32);
+}

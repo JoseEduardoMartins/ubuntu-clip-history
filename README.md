@@ -51,7 +51,9 @@ sinal D-Bus `Update` do GPaste e lê os itens — puro D-Bus, **sem nunca tocar 
 foco**. Ao colar, a extensão pede ao GPaste para recopiar o item (`Select`, que
 serve tanto para texto quanto para imagem) e injeta `Ctrl+V` por um **dispositivo
 virtual do Clutter**, entregue ao app que tinha o foco antes do popup abrir —
-tudo dentro do próprio Shell, **sem ydotool nem wl-clipboard**.
+tudo dentro do próprio Shell, **sem ydotool nem wl-clipboard**. Em **terminais**
+(onde colar é `Ctrl+Shift+V`, não `Ctrl+V`) a extensão detecta a janela focada
+pelo `wm_class` e injeta a combinação certa.
 
 Ser uma extensão (e não um app GTK) é a decisão central: no Wayland só o
 processo do Shell pode posicionar `actors` na tela e injetar teclas.
@@ -73,10 +75,14 @@ não houver caret disponível, cai no canto inferior direito.
   Só texto é fixável — imagens e senhas não.
 - **Excluir um item:** botão `×` na linha, ou `Ctrl+Delete` no item selecionado
   (o `Delete` sozinho edita o texto da busca).
-- **Excluir todos:** botão 🗑 (topo, ao lado da busca), com confirmação.
+- **Excluir todos:** botão **Limpar tudo** no rodapé. Como apaga histórico **e**
+  favoritos de uma vez (irreversível), pede confirmação: o primeiro clique arma
+  o botão (vira *"⚠ Confirmar limpeza?"*) e só o segundo apaga — se você não
+  confirmar em alguns segundos, ele volta ao normal sozinho.
 
-O atalho `Super+V` é configurável na tela de preferências da extensão
-(`gnome-extensions prefs clip-history@joseeduardomartins.com`).
+O atalho `Super+V` é **editável** na tela de preferências da extensão
+(`gnome-extensions prefs clip-history@joseeduardomartins.com`): clique na linha
+do atalho e aperte a nova combinação (`Backspace` desabilita, `Esc` cancela).
 
 ## Testes e CI
 
@@ -134,3 +140,8 @@ Texto e imagens; últimos 100 itens (limite do GPaste); dedup. Fixados (só text
 escapam do limite. Itens de senha aparecem mascarados na lista (não fixáveis) —
 mas dependem do GPaste marcá-los como `Password`; apps que copiam a senha como
 texto comum não são detectados.
+
+O auto-paste em terminais assume `Ctrl+Shift+V` para uma lista de terminais
+conhecidos (GNOME Terminal, Konsole, kitty, Alacritty, WezTerm, foot, Ptyxis,
+GNOME Console, Tilix, Terminator, xterm, BlackBox). Um terminal fora dessa lista
+recebe `Ctrl+V` e pode não colar — nesse caso, cole com o atalho do terminal.
