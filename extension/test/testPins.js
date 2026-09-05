@@ -152,11 +152,14 @@ section('persistência');
 // pinsPath aponta pro data dir do usuário.
 check('pinsPath termina em clip-history/pins.json', pinsPath().endsWith('/clip-history/pins.json'));
 
-// Round-trip: salvar e carregar (com UTF-8).
+// Round-trip: salvar e carregar (com UTF-8). savePins é assíncrono e devolve uma
+// Promise — aguardamos antes de reler (gjs -m suporta top-level await).
 {
     const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-pins-${Date.now()}.json`]);
     const pins = [{ content: 'linha 1', created_at: '2026-09-01' }, { content: 'çãé', created_at: '2026-09-01' }];
-    savePins(path, pins);
+    const p = savePins(path, pins);
+    check('savePins devolve Promise', p instanceof Promise);
+    await p;
     const loaded = loadPins(path);
     eq('round-trip len', loaded.length, 2);
     eq('round-trip content', loaded[0].content, 'linha 1');
@@ -168,7 +171,7 @@ check('pinsPath termina em clip-history/pins.json', pinsPath().endsWith('/clip-h
 {
     const base = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-${Date.now()}`]);
     const path = GLib.build_filenamev([base, 'sub', 'pins.json']);
-    savePins(path, [{ content: 'x', created_at: '2026-09-01' }]);
+    await savePins(path, [{ content: 'x', created_at: '2026-09-01' }]);
     eq('salva em dir aninhado inexistente', loadPins(path).length, 1);
     GLib.unlink(path);
     GLib.rmdir(GLib.build_filenamev([base, 'sub']));

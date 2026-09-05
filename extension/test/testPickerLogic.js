@@ -1,6 +1,6 @@
 // Testes da lógica pura do picker. Rodar: gjs -m extension/test/testPickerLogic.js
 import { check, eq, deepEq, section, report } from './assert.js';
-import { filterEntries, clampSelected, nextSelected, reselectIndex, keyAction } from '../pickerLogic.js';
+import { filterEntries, clampSelected, nextSelected, reselectIndex, keyAction, scrollValueFor } from '../pickerLogic.js';
 
 // --- filterEntries -------------------------------------------------------
 section('filterEntries');
@@ -132,6 +132,35 @@ section('reselectIndex');
     // Pino de texto sem uuid: casa por content.
     const entries = [{ uuid: '', content: 'pin-x' }, { uuid: 'b', content: 'B' }];
     eq('casa por content quando sem uuid', reselectIndex(entries, 'pin-x', 1), 0);
+}
+
+// --- scrollValueFor ------------------------------------------------------
+// Novo valor do vadjustment pra deixar a linha [top, bottom] visível na
+// viewport [value, value+pageSize]. Item já visível não mexe.
+section('scrollValueFor');
+{
+    const PAGE = 100;
+    // Item já visível (topo, meio, fim da vista) -> inalterado.
+    eq('visível no topo da vista', scrollValueFor(0, 20, 0, PAGE), 0);
+    eq('visível no meio', scrollValueFor(40, 60, 0, PAGE), 0);
+    eq('visível colado no fim', scrollValueFor(80, 100, 0, PAGE), 0);
+
+    // Item acima da vista -> rola pra cima, alinhando o topo do item.
+    eq('acima da vista', scrollValueFor(30, 50, 80, PAGE), 30);
+
+    // Item abaixo da vista -> rola pra baixo, alinhando o fim do item.
+    eq('abaixo da vista', scrollValueFor(150, 170, 0, PAGE), 70); // 170 - 100
+
+    // Bordas exatas contam como visível (sem rolar).
+    eq('borda: top == value', scrollValueFor(50, 70, 50, PAGE), 50);
+    eq('borda: bottom == value+page', scrollValueFor(30, 100, 0, PAGE), 0);
+
+    // Item maior que a página, aproximado por baixo (value abaixo do item):
+    // alinha o fim do item (mostra a porção de baixo). Preserva o comportamento
+    // original do _scrollToSelected.
+    eq('item alto por baixo alinha o fim', scrollValueFor(200, 400, 0, PAGE), 300); // 400 - 100
+    // Item maior que a página, aproximado por cima (top < value): alinha o topo.
+    eq('item alto por cima alinha o topo', scrollValueFor(200, 500, 250, PAGE), 200);
 }
 
 // --- keyAction -----------------------------------------------------------

@@ -58,6 +58,20 @@ export function reselectIndex(entries, key, fallback) {
     return clampSelected(fallback, entries.length);
 }
 
+// Novo valor do vadjustment para deixar a linha [top, bottom] visível dentro da
+// viewport [value, value+pageSize]. Se a linha está acima da vista, sobe
+// alinhando o topo; se está abaixo, desce alinhando o fim; se já está visível,
+// devolve `value` inalterado. Para um item mais alto que a página, o resultado
+// depende do lado por onde se chega (topo se vinha de baixo do value; fim caso
+// contrário) — preserva o comportamento do _scrollToSelected original.
+export function scrollValueFor(top, bottom, value, pageSize) {
+    if (top < value)
+        return top;
+    if (bottom > value + pageSize)
+        return bottom - pageSize;
+    return value;
+}
+
 // Traduz uma tecla (símbolo + máscara de modificadores) numa ação abstrata,
 // sem tocar em atores. KEYS injeta as constantes do Clutter para o teste
 // poder fornecer valores próprios.

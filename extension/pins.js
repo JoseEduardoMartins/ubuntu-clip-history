@@ -101,13 +101,33 @@ export function loadPins(path) {
     }
 }
 
+// Escrita ASSÍNCRONA (não bloqueia o compositor): o processo do gnome-shell não
+// deve fazer I/O de disco no seu loop principal. Devolve uma Promise que SEMPRE
+// resolve — erros são logados, nunca rejeitados — para que os chamadores possam
+// disparar sem `await` (fire-and-forget) sem gerar unhandled rejection. Os testes
+// aguardam a Promise antes de reler. O mkdir do diretório-pai segue síncrono
+// (barato, e garante o destino antes do write). Cada save grava o estado
+// completo e o REPLACE_DESTINATION é atômico (temp + rename): dois writes
+// sobrepostos terminam em last-write-wins com o arquivo sempre íntegro.
 export function savePins(path, pins) {
     const file = Gio.File.new_for_path(path);
     const parent = file.get_parent();
     if (parent)
         GLib.mkdir_with_parents(parent.get_path(), 0o755);
     const text = JSON.stringify(pins, null, 2);
-    file.replace_contents(
-        _encoder.encode(text), null, false,
-        Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+    const bytes = GLib.Bytes.new(_encoder.encode(text));
+    return new Promise(resolve => {
+        file.replace_contents_bytes_async(
+            bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
+            (f, res) => {
+                try {
+                    f.replace_contents_finish(res);
+                } catch (e) {
+                    // logError existe no gnome-shell; nos testes (gjs) cai no console.
+                    (globalThis.logError ?? console.error)(
+                        e, 'clip-history: falha ao salvar pins.json');
+                }
+                resolve();
+            });
+    });
 }
