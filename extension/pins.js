@@ -34,6 +34,17 @@ export function removePin(pins, content) {
     return pins.filter(p => p.content !== content);
 }
 
+// Expurga do store qualquer pino cujo conteúdo o GPaste passou a marcar como
+// senha. `passwordContents` é um Set de strings. Um item pode ser fixado como
+// texto e só depois virar Password (ex.: o gerenciador de senhas o reconhece);
+// quando isso é descoberto, ele não pode continuar persistido em texto puro em
+// pins.json. Sempre devolve uma cópia nova (imutável), como os outros helpers.
+export function dropKnownPasswords(pins, passwordContents) {
+    if (!passwordContents || passwordContents.size === 0)
+        return pins.slice();
+    return pins.filter(p => !passwordContents.has(p.content));
+}
+
 // Junta pinos (no topo, na ordem do store) com o histórico do GPaste,
 // deduplicando o histórico contra os pinos. Cada pino herda o uuid do item
 // correspondente no histórico (se existir) para permitir Delete/Select.
@@ -78,7 +89,12 @@ export function loadPins(path) {
         if (!ok)
             return [];
         const data = JSON.parse(_decoder.decode(bytes));
-        return Array.isArray(data) ? data : [];
+        if (!Array.isArray(data))
+            return [];
+        // Descarta entradas com shape inválido: um pins.json corrompido/mexido à
+        // mão não pode injetar `undefined` nas comparações de content (isPinned,
+        // mergeEntries) nem persistir lixo de volta no próximo savePins.
+        return data.filter(p => p && typeof p.content === 'string');
     } catch (_e) {
         // arquivo inexistente ou JSON inválido -> começa vazio
         return [];

@@ -12,7 +12,7 @@ import Pango from 'gi://Pango';
 
 import { preview } from './text.js';
 import { isPinnable } from './pins.js';
-import { filterEntries, clampSelected, nextSelected, keyAction } from './pickerLogic.js';
+import { filterEntries, clampSelected, nextSelected, reselectIndex, entryKey, keyAction } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
 const THUMB_SIZE = 48;          // lado da miniatura de imagem, em px lógicos
@@ -24,6 +24,7 @@ export const Picker = GObject.registerClass({
     Signals: {
         'chosen': { param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING] },   // uuid(''=nenhum), content
         'pin-toggled': { param_types: [GObject.TYPE_STRING] },                   // content
+        'unpinned': { param_types: [GObject.TYPE_STRING] },                      // content (pino descoberto como senha)
         'deleted': { param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING] },  // uuid(''=nenhum), content
         'clear-all': {},
         'dismissed': {},
@@ -162,10 +163,14 @@ export const Picker = GObject.registerClass({
     // é injetado (o picker não conhece o gpaste): as linhas nascem como texto
     // e cada uma vira imagem quando seus metadados chegam (lazy por linha).
     setEntries(all, { resolveMeta } = {}) {
+        // Preserva a seleção pelo ITEM (não pelo índice): num refresh ao vivo um
+        // item novo no topo empurraria a lista e a seleção por índice apontaria
+        // pro item errado. Guarda a identidade do item atual e reencontra abaixo.
+        const preserveKey = entryKey(this._entries[this._selected]);
         this._all = all;
         if (resolveMeta)
             this._resolveMeta = resolveMeta;
-        this._applyFilter();
+        this._applyFilter(preserveKey);
         this.grabFocus();
     }
 
@@ -173,9 +178,12 @@ export const Picker = GObject.registerClass({
         this._search.grab_key_focus();
     }
 
-    _applyFilter() {
+    // `preserveKey` (só no refresh via setEntries) mantém a seleção no mesmo
+    // item. Ao digitar na busca (_scheduleFilter) vem nula: aí a seleção só é
+    // reajustada por clamp (comportamento de "vai pro topo/fim conforme filtra").
+    _applyFilter(preserveKey = null) {
         this._entries = filterEntries(this._all, this._search.get_text());
-        this._selected = clampSelected(this._selected, this._entries.length);
+        this._selected = reselectIndex(this._entries, preserveKey, this._selected);
         this._render();
     }
 
@@ -294,6 +302,10 @@ export const Picker = GObject.registerClass({
     // tratem como senha (não fixável, sempre mascarada). O valor real nunca é
     // exibido — só recopiado ao escolher (via Select).
     _upgradeToPassword(row, entry, prefix) {
+        // Se estava fixado, o pino precisa ser expurgado do store: um item
+        // fixado como texto que o GPaste agora marca como senha não pode
+        // continuar persistido em texto puro em pins.json (ver _onUnpinned).
+        const wasPinned = entry.pinned;
         entry.kind = 'password';
 
         if (row._contentActor) {
@@ -309,6 +321,10 @@ export const Picker = GObject.registerClass({
             row._pinButton.destroy();
             row._pinButton = null;
         }
+
+        entry.pinned = false;
+        if (wasPinned)
+            this.emit('unpinned', entry.content);
     }
 
     _textContent(prefix, content) {
