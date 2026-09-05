@@ -19,6 +19,7 @@ import {
     pinsPath, loadPins, savePins, addPin, removePin, isPinned, mergeEntries,
     dropKnownPasswords,
 } from './pins.js';
+import { isTerminal } from './paste.js';
 
 const PASTE_DELAY_MS = 90; // espera o foco voltar ao app antes do Ctrl+V
 
@@ -30,6 +31,10 @@ export default class ClipHistoryExtension extends Extension {
         this._picker = null;
         this._grab = null;
         this._caret = null;
+        // wm_class da janela focada quando o popup abre — decide a tecla de
+        // colagem (terminais colam com Ctrl+Shift+V, não Ctrl+V). Capturado
+        // antes do pushModal, junto do caret.
+        this._focusWmClass = null;
         this._pasteTimeout = 0;
         // Muda a cada open/close; invalida loads assíncronos em voo (evita que
         // um getHistory lento escreva num picker que já foi fechado/reaberto).
@@ -94,6 +99,8 @@ export default class ClipHistoryExtension extends Extension {
         // foco (pushModal/grabFocus abaixo), o input method passa a apontar pro
         // nosso St.Entry e o caret do app original se perde.
         this._caret = this._captureCaret();
+        // Idem para a janela focada: depois do pushModal, o foco é nosso.
+        this._focusWmClass = this._captureFocusWmClass();
 
         const picker = new Picker();
         picker.connect('chosen', (_p, uuid, content) => this._onChosen(uuid, content));
@@ -124,6 +131,9 @@ export default class ClipHistoryExtension extends Extension {
         this._picker.destroy();
         this._picker = null;
         this._caret = null;
+        // Mantém this._focusWmClass: o paste é agendado logo após o _close e
+        // precisa saber se o alvo era um terminal. É sobrescrito no próximo
+        // _open (ou fica obsoleto sem uso se nada mais colar).
     }
 
     // Retângulo do cursor de texto do campo focado, em coords de stage (px
@@ -152,6 +162,18 @@ export default class ClipHistoryExtension extends Extension {
             return validCaret(im._cursorRect);
         } catch {
             return null;   // API privada ausente/mudou: cai no canto (fallback)
+        }
+    }
+
+    // wm_class da janela focada AGORA (antes do pushModal roubar o foco). Serve
+    // pra decidir a tecla de colagem: terminais colam com Ctrl+Shift+V. Acesso
+    // defensivo — sem janela focada (ou erro), devolve null e cai no Ctrl+V.
+    _captureFocusWmClass() {
+        try {
+            const win = global.display.get_focus_window();
+            return win ? win.get_wm_class() : null;
+        } catch {
+            return null;
         }
     }
 
@@ -309,9 +331,17 @@ export default class ClipHistoryExtension extends Extension {
         const t = () => global.get_current_time() * 1000;
         const P = Clutter.KeyState.PRESSED;
         const R = Clutter.KeyState.RELEASED;
+        // Terminais colam com Ctrl+Shift+V (o Ctrl+V não cola lá). Fora deles,
+        // Ctrl+V é o padrão universal. A detecção é por wm_class da janela que
+        // estava focada ao abrir o popup.
+        const shift = isTerminal(this._focusWmClass);
         this._vdevice.notify_keyval(t(), Clutter.KEY_Control_L, P);
+        if (shift)
+            this._vdevice.notify_keyval(t(), Clutter.KEY_Shift_L, P);
         this._vdevice.notify_keyval(t(), Clutter.KEY_v, P);
         this._vdevice.notify_keyval(t(), Clutter.KEY_v, R);
+        if (shift)
+            this._vdevice.notify_keyval(t(), Clutter.KEY_Shift_L, R);
         this._vdevice.notify_keyval(t(), Clutter.KEY_Control_L, R);
     }
 }

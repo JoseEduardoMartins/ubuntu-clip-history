@@ -17,6 +17,7 @@ TESTS=(
     testText.js
     testPickerLogic.js
     testGpaste.js
+    testPaste.js
 )
 
 pass=0
