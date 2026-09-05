@@ -71,11 +71,13 @@ não houver caret disponível, cai no canto inferior direito.
 - **Senhas** (itens que o GPaste marca como `Password`) aparecem **mascaradas**
   (🔒 `••••••••`) — o valor nunca é exibido, só recopiado ao escolher. Também não
   aparecem ao buscar (a busca não casa o valor da senha).
-- **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
+- **Fixar/favoritar:** botão de **alfinete** (📌) na linha — anunciado como
+  "Fixar"/"Desfixar" por leitores de tela — ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
   Só texto é fixável — imagens e senhas não.
-- **Excluir um item:** botão `×` na linha, ou `Ctrl+Delete` no item selecionado
-  (o `Delete` sozinho edita o texto da busca).
+- **Excluir um item:** botão de **fechar** (×, anunciado como "Excluir") na
+  linha, ou `Ctrl+Delete` no item selecionado (o `Delete` sozinho edita o texto
+  da busca).
 - **Excluir todos:** botão **Limpar tudo** no rodapé. Como apaga histórico **e**
   favoritos de uma vez (irreversível), pede confirmação: o primeiro clique arma
   o botão (vira *"⚠ Confirmar limpeza?"*) e só o segundo apaga — se você não
