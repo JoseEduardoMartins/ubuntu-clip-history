@@ -185,11 +185,20 @@ export default class ClipHistoryExtension extends Extension {
         const token = this._loadToken;
         // Tenta (re)conectar caso o GPaste não estivesse pronto no enable().
         this._connectGPaste();
+        // Distingue "GPaste indisponível" de "histórico vazio": sem daemon ou
+        // com getHistory falhando, a lista fica vazia — mas o motivo é erro, e o
+        // picker mostra um estado distinto (diagnóstico) em vez de "Nada aqui".
         let history = [];
-        try {
-            history = this._gpaste ? await this._gpaste.getHistory() : [];
-        } catch (e) {
-            logError(e, 'clip-history: falha ao ler o histórico do GPaste');
+        let gpasteError = false;
+        if (!this._gpaste) {
+            gpasteError = true;
+        } else {
+            try {
+                history = await this._gpaste.getHistory();
+            } catch (e) {
+                logError(e, 'clip-history: falha ao ler o histórico do GPaste');
+                gpasteError = true;
+            }
         }
         // Fechou/reabriu enquanto carregava? Descarta (o picker pode ser outro).
         if (!this._picker || token !== this._loadToken)
@@ -212,6 +221,7 @@ export default class ClipHistoryExtension extends Extension {
             resolveMeta: uuid => this._gpaste
                 ? this._gpaste.getMeta(uuid)
                 : Promise.resolve({ kind: 'text', imagePath: null }),
+            error: gpasteError,
         });
         if (position)
             this._position();

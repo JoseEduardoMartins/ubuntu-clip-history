@@ -69,7 +69,8 @@ não houver caret disponível, cai no canto inferior direito.
   escolha rápida. `Esc` limpa a busca se houver texto; com a busca vazia, fecha.
 - **Imagens** aparecem como miniatura; escolher recopia a imagem pro clipboard.
 - **Senhas** (itens que o GPaste marca como `Password`) aparecem **mascaradas**
-  (🔒 `••••••••`) — o valor nunca é exibido, só recopiado ao escolher.
+  (🔒 `••••••••`) — o valor nunca é exibido, só recopiado ao escolher. Também não
+  aparecem ao buscar (a busca não casa o valor da senha).
 - **Fixar/favoritar:** botão `★` na linha, ou `Ctrl+P` no item selecionado.
   Fixados vão para o topo e **não somem pelo limite de 100** (nunca expiram).
   Só texto é fixável — imagens e senhas não.

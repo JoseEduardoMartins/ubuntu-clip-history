@@ -163,9 +163,16 @@ extensão nova só carrega após **logout/login**.
   segredo nunca persiste em texto puro em `pins.json`. Duas camadas: o picker
   emite `unpinned` no momento do upgrade da linha, e `_loadEntries` reexpurga na
   reabertura via `dropKnownPasswords(pins, gpaste.passwordContents(history))`.
+  A **busca também não casa senhas**: `filterEntries` exclui `kind==='password'`
+  de qualquer query não-vazia — o `content` é o valor real, então casá-lo por
+  substring vazaria se um segredo contém o texto digitado (com a busca vazia
+  aparecem, mascaradas).
 - **GPaste é obrigatório:** sem o daemon, `getHistory` falha e a lista fica
-  vazia — o `enable()` sobrevive de propósito (não vai a estado ERROR). Um GPaste
-  que não exponha `GetElementKind`/`GetRawElement` degrada tudo para texto.
+  vazia — o `enable()` sobrevive de propósito (não vai a estado ERROR). Nesse
+  caso `_loadEntries` marca `error` e o picker mostra um estado vazio distinto
+  ("GPaste indisponível…") em vez de "Nada aqui ainda.", separando falha de
+  histórico vazio de verdade. Um GPaste que não exponha
+  `GetElementKind`/`GetRawElement` degrada tudo para texto.
 - **Busca com debounce:** o campo de busca refiltra ~120ms depois da última
   tecla (não a cada caractere), evitando reconstruir a lista inteira na digitação.
 - **Auto-paste em terminais:** o colar em terminais é `Ctrl+Shift+V`. A extensão
