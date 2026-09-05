@@ -44,6 +44,37 @@ section('filterEntries');
     deepEq('trim da query', filterEntries(all, '  hello  ').map(e => e.uuid), ['a']);
 }
 
+// filterEntries: itens de senha nunca casam a busca (privacidade). O content de
+// uma senha é o valor real em texto plano — casá-lo por substring vazaria se um
+// segredo contém o texto digitado. Com a busca vazia aparecem (mascarados na UI).
+{
+    const all = [
+        { content: 'nota comum', uuid: 'a', kind: 'text' },
+        { content: 'senha-secreta-123', uuid: 'b', kind: 'password' },
+        { content: 'outra senha 123', uuid: 'c', kind: 'password' },
+        { content: '[Image, 10 x 10]', uuid: 'd', kind: 'image' },
+    ];
+
+    // Busca vazia -> tudo aparece (senhas inclusas, mascaradas na UI).
+    eq('busca vazia mostra senhas', filterEntries(all, '').length, 4);
+
+    // Substring que casaria o valor real da senha -> a senha NÃO aparece.
+    deepEq('senha não casa por substring do valor',
+        filterEntries(all, '123').map(e => e.uuid), []);
+    deepEq('senha não casa nem pelo prefixo',
+        filterEntries(all, 'senha-secreta').map(e => e.uuid), []);
+
+    // Texto e imagem seguem casando normalmente.
+    deepEq('texto ainda casa', filterEntries(all, 'nota').map(e => e.uuid), ['a']);
+    deepEq('imagem ainda casa', filterEntries(all, 'image').map(e => e.uuid), ['d']);
+
+    // kind ausente é tratado como texto (casa) — defensivo.
+    {
+        const semKind = [{ content: 'abc', uuid: 'x' }];
+        deepEq('sem kind casa como texto', filterEntries(semKind, 'abc').map(e => e.uuid), ['x']);
+    }
+}
+
 // --- clampSelected -------------------------------------------------------
 section('clampSelected');
 eq('clamp dentro do range', clampSelected(2, 5), 2);

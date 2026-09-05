@@ -5,11 +5,18 @@
 
 // Filtra as entradas por substring case-insensitive do content.
 // Query vazia (ou só espaços) devolve uma cópia de todas as entradas.
+//
+// Itens de senha (kind==='password') são EXCLUÍDOS de qualquer busca não-vazia:
+// o `content` de uma senha é o valor real em texto plano, então casá-lo por
+// substring revelaria se um segredo contém o que foi digitado (a linha
+// apareceria/sumiria). Com a busca vazia eles aparecem normalmente (mascarados
+// na UI). Entradas sem `kind` são tratadas como texto (casam) — default defensivo.
 export function filterEntries(all, query) {
     const q = (query ?? '').trim().toLowerCase();
     if (!q)
         return all.slice();
-    return all.filter(e => e.content.toLowerCase().includes(q));
+    return all.filter(e => (e.kind ?? 'text') !== 'password'
+        && e.content.toLowerCase().includes(q));
 }
 
 // Corrige a seleção depois que a lista encolheu (ex.: filtro).
