@@ -81,7 +81,16 @@ export class GPaste {
             if (!live.has(uuid))
                 this._meta.delete(uuid);
 
-        return items.map(([uuid, content]) => ({ uuid, content }));
+        // Enriquece com o meta JÁ cacheado (custo zero: só lookup no Map). No
+        // refresh ao vivo a linha nasce direto como imagem/senha, sem piscar
+        // texto e re-upgradar. Uuids ainda não resolvidos saem só uuid+content
+        // e a UI resolve sob demanda (getMeta) como antes.
+        return items.map(([uuid, content]) => {
+            const meta = this._meta.get(uuid);
+            return meta
+                ? { uuid, content, kind: meta.kind, imagePath: meta.imagePath }
+                : { uuid, content };
+        });
     }
 
     // Descobre kind (e, se imagem, o caminho do arquivo) de um uuid e cacheia.
@@ -108,6 +117,21 @@ export class GPaste {
         const meta = { kind, imagePath };
         this._meta.set(uuid, meta);
         return meta;
+    }
+
+    // Set dos `content` do histórico dado cujo uuid JÁ está cacheado como
+    // senha (kind==='password'). Só consulta o cache local — nunca dispara
+    // D-Bus. Serve para expurgar pinos que o GPaste passou a marcar como senha
+    // (um segredo não pode persistir como pino em texto puro). Itens ainda não
+    // resolvidos simplesmente não entram — a limpeza imediata da UI cobre esses.
+    passwordContents(history) {
+        const set = new Set();
+        for (const { uuid, content } of history) {
+            const meta = this._meta.get(uuid);
+            if (meta && meta.kind === 'password')
+                set.add(content);
+        }
+        return set;
     }
 
     async _getRawElement(uuid) {

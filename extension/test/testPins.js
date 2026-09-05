@@ -1,7 +1,7 @@
 // Testes de pins.js. Rodar: gjs -m extension/test/testPins.js
 import GLib from 'gi://GLib';
-import { check, eq, section, report } from './assert.js';
-import { mergeEntries, addPin, removePin, isPinned, isPinnable, loadPins, savePins, pinsPath } from '../pins.js';
+import { check, eq, deepEq, section, report } from './assert.js';
+import { mergeEntries, addPin, removePin, isPinned, isPinnable, dropKnownPasswords, loadPins, savePins, pinsPath } from '../pins.js';
 
 // --- mergeEntries --------------------------------------------------------
 section('mergeEntries');
@@ -111,6 +111,41 @@ section('addPin / removePin / isPinned');
     check('isPinnable entry nula -> texto', isPinnable(null) === true);
 }
 
+// --- dropKnownPasswords --------------------------------------------------
+// Um item fixado como texto que o GPaste depois marca como senha deve ser
+// expurgado do store — um segredo nunca persiste como pino em texto puro.
+section('dropKnownPasswords');
+{
+    const pins = [{ content: 'a' }, { content: 'segredo' }, { content: 'b' }];
+    const out = dropKnownPasswords(pins, new Set(['segredo']));
+    eq('remove o pino que virou senha', out.length, 2);
+    check('conteúdo da senha some', !out.some(p => p.content === 'segredo'));
+    check('mantém os demais', out.some(p => p.content === 'a') && out.some(p => p.content === 'b'));
+    check('não muta o original', pins.length === 3);
+}
+{
+    const pins = [{ content: 'a' }, { content: 'b' }];
+    // Set vazio -> cópia inalterada.
+    const out = dropKnownPasswords(pins, new Set());
+    eq('set vazio não remove nada', out.length, 2);
+    check('set vazio devolve cópia', out !== pins);
+    // Sem casar nada -> cópia inalterada.
+    const out2 = dropKnownPasswords(pins, new Set(['zzz']));
+    eq('sem casar não remove nada', out2.length, 2);
+    check('sem casar devolve cópia', out2 !== pins);
+}
+{
+    // Remove todos os que casam (múltiplos).
+    const pins = [{ content: 'x' }, { content: 'y' }, { content: 'z' }];
+    const out = dropKnownPasswords(pins, new Set(['x', 'z']));
+    deepEq('remove múltiplos', out.map(p => p.content), ['y']);
+}
+{
+    // Set nulo/ausente -> cópia inalterada (defensivo).
+    const pins = [{ content: 'a' }];
+    eq('set nulo não quebra', dropKnownPasswords(pins, null).length, 1);
+}
+
 // --- Persistência (Gio) --------------------------------------------------
 section('persistência');
 
@@ -162,6 +197,24 @@ eq('load inexistente vazio', loadPins('/nao/existe/pins.json').length, 0);
     GLib.file_set_contents(pNum, '42');
     eq('load número (não-array) vazio', loadPins(pNum).length, 0);
     GLib.unlink(pNum);
+}
+
+// loadPins descarta entradas com shape inválido (sem content string): um
+// pins.json corrompido não deve injetar `undefined` nas comparações de content.
+{
+    const path = GLib.build_filenamev([GLib.get_tmp_dir(), `cliphist-shape-${Date.now()}.json`]);
+    GLib.file_set_contents(path, JSON.stringify([
+        { content: 'ok', created_at: '2026-09-01' },
+        { created_at: '2026-09-01' },   // sem content
+        { content: 42 },                // content não-string
+        null,                           // entrada nula
+        'texto solto',                  // não é objeto
+        { content: 'ok2' },
+    ]));
+    const loaded = loadPins(path);
+    eq('mantém só os pinos válidos', loaded.length, 2);
+    deepEq('conteúdos válidos preservados', loaded.map(p => p.content), ['ok', 'ok2']);
+    GLib.unlink(path);
 }
 
 report();

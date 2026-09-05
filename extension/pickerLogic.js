@@ -31,6 +31,26 @@ export function nextSelected(selected, delta, length) {
     return ((selected + delta) % length + length) % length;
 }
 
+// Chave de identidade de uma entrada: uuid, ou content quando não há uuid
+// (pino de texto que já saiu do histórico do GPaste).
+export function entryKey(entry) {
+    return entry ? (entry.uuid || entry.content) : null;
+}
+
+// Reencontra o índice do item previamente selecionado depois que a lista mudou
+// (refresh ao vivo). `key` identifica esse item (ver entryKey). Se ele ainda
+// existe, devolve a nova posição — assim um item novo no topo não faz a seleção
+// "escorregar" pro item errado. Se sumiu (deletado/filtrado) ou `key` é nula,
+// cai no clamp da posição anterior (`fallback`), sem pular pro topo.
+export function reselectIndex(entries, key, fallback) {
+    if (key != null) {
+        const i = entries.findIndex(e => (e.uuid || e.content) === key);
+        if (i >= 0)
+            return i;
+    }
+    return clampSelected(fallback, entries.length);
+}
+
 // Traduz uma tecla (símbolo + máscara de modificadores) numa ação abstrata,
 // sem tocar em atores. KEYS injeta as constantes do Clutter para o teste
 // poder fornecer valores próprios.

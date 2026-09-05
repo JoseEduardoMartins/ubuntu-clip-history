@@ -1,6 +1,6 @@
 // Testes da lógica pura do picker. Rodar: gjs -m extension/test/testPickerLogic.js
 import { check, eq, deepEq, section, report } from './assert.js';
-import { filterEntries, clampSelected, nextSelected, keyAction } from '../pickerLogic.js';
+import { filterEntries, clampSelected, nextSelected, reselectIndex, keyAction } from '../pickerLogic.js';
 
 // --- filterEntries -------------------------------------------------------
 section('filterEntries');
@@ -65,6 +65,43 @@ eq('next lista de 1 fica', nextSelected(0, +1, 1), 0);
 eq('next delta grande +', nextSelected(0, +7, 5), 2);
 eq('next delta grande -', nextSelected(0, -7, 5), 3);
 eq('next delta exato = volta', nextSelected(3, +5, 5), 3);
+
+// --- reselectIndex -------------------------------------------------------
+// Mantém a seleção no MESMO item após a lista mudar (refresh ao vivo): sem
+// isso, um item novo no topo empurrava tudo e a seleção por índice passava a
+// apontar pro item errado.
+section('reselectIndex');
+{
+    const before = [
+        { uuid: 'a', content: 'A' },
+        { uuid: 'b', content: 'B' },
+        { uuid: 'c', content: 'C' },
+    ];
+    // Um item novo entra no topo: 'b' (antes idx 1) agora está no idx 2.
+    const after = [
+        { uuid: 'novo', content: 'N' },
+        { uuid: 'a', content: 'A' },
+        { uuid: 'b', content: 'B' },
+        { uuid: 'c', content: 'C' },
+    ];
+    const key = before[1].uuid; // estava selecionado 'b'
+    eq('segue o item pelo uuid', reselectIndex(after, key, 1), 2);
+}
+{
+    const entries = [{ uuid: 'a', content: 'A' }, { uuid: 'b', content: 'B' }];
+    // Item selecionado sumiu (deletado/filtrado) -> clamp do fallback.
+    eq('sumiu -> clamp do fallback', reselectIndex(entries, 'zzz', 5), 1);
+    eq('sumiu, fallback dentro', reselectIndex(entries, 'zzz', 0), 0);
+    // Key nula (nada estava selecionado) -> clamp do fallback.
+    eq('key nula -> clamp', reselectIndex(entries, null, 3), 1);
+    // Lista vazia -> 0.
+    eq('lista vazia -> 0', reselectIndex([], 'a', 2), 0);
+}
+{
+    // Pino de texto sem uuid: casa por content.
+    const entries = [{ uuid: '', content: 'pin-x' }, { uuid: 'b', content: 'B' }];
+    eq('casa por content quando sem uuid', reselectIndex(entries, 'pin-x', 1), 0);
+}
 
 // --- keyAction -----------------------------------------------------------
 section('keyAction');

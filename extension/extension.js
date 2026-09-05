@@ -17,6 +17,7 @@ import { Picker, POPUP_WIDTH } from './picker.js';
 import { computePosition, validCaret, pickMonitor } from './position.js';
 import {
     pinsPath, loadPins, savePins, addPin, removePin, isPinned, mergeEntries,
+    dropKnownPasswords,
 } from './pins.js';
 
 const PASTE_DELAY_MS = 90; // espera o foco voltar ao app antes do Ctrl+V
@@ -97,6 +98,7 @@ export default class ClipHistoryExtension extends Extension {
         const picker = new Picker();
         picker.connect('chosen', (_p, uuid, content) => this._onChosen(uuid, content));
         picker.connect('pin-toggled', (_p, content) => this._onPinToggled(content));
+        picker.connect('unpinned', (_p, content) => this._onUnpinned(content));
         picker.connect('deleted', (_p, uuid, content) => this._onDeleted(uuid, content));
         picker.connect('clear-all', () => this._onClearAll());
         picker.connect('dismissed', () => this._close());
@@ -170,6 +172,18 @@ export default class ClipHistoryExtension extends Extension {
         // Fechou/reabriu enquanto carregava? Descarta (o picker pode ser outro).
         if (!this._picker || token !== this._loadToken)
             return;
+        // Expurga pinos que o GPaste passou a marcar como senha (defesa em
+        // profundidade, além da limpeza imediata via sinal 'unpinned'): na
+        // reabertura, o cache de meta já pode conhecê-los. Um segredo não pode
+        // sobreviver como pino em texto puro em pins.json.
+        if (this._gpaste) {
+            const cleaned = dropKnownPasswords(
+                this._pins, this._gpaste.passwordContents(history));
+            if (cleaned.length !== this._pins.length) {
+                this._pins = cleaned;
+                savePins(this._pinsPath, this._pins);
+            }
+        }
         // Resolver lazy de metadados por linha: o picker chama só nas linhas que
         // renderiza, e o gpaste cacheia por uuid. Sem daemon, degrada pra texto.
         this._picker.setEntries(mergeEntries(this._pins, history), {
@@ -232,6 +246,16 @@ export default class ClipHistoryExtension extends Extension {
             : addPin(this._pins, content);
         savePins(this._pinsPath, this._pins);
         this._refresh();
+    }
+
+    // Um pino foi descoberto como senha (o picker fez upgrade da linha): remove
+    // do store para não persistir o segredo em texto puro. Só local — o item
+    // segue no histórico do GPaste normalmente.
+    _onUnpinned(content) {
+        if (!isPinned(this._pins, content))
+            return;
+        this._pins = removePin(this._pins, content);
+        savePins(this._pinsPath, this._pins);
     }
 
     async _onDeleted(uuid, content) {

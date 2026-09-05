@@ -132,6 +132,63 @@ section('getMeta');
     eq('degradação também é cacheada', countMethod(calls, 'GetElementKind'), 1);
 }
 
+// getHistory enriquece com o meta JÁ cacheado (kind/imagePath), sem D-Bus
+// extra: no refresh ao vivo a linha nasce já como imagem/senha (sem piscar
+// texto e re-upgradar). Uuids ainda não resolvidos saem só com uuid+content.
+{
+    let history = [['img', 'c-img'], ['u1', 'c1']];
+    const { gp, calls } = fakeGPaste({
+        GetHistory: () => [history],
+        GetElementKind: params => (params.deepUnpack()[0] === 'img' ? ['Image'] : ['Text']),
+        GetRawElement: () => ['/tmp/a.png'],
+    });
+    // Antes de resolver nada: só uuid+content (cache vazio).
+    deepEq('sem cache -> só uuid+content', await gp.getHistory(),
+        [{ uuid: 'img', content: 'c-img' }, { uuid: 'u1', content: 'c1' }]);
+
+    await gp.getMeta('img');   // popula o cache como imagem
+    await gp.getMeta('u1');    // popula o cache como texto
+    const before = calls.length;
+
+    const h = await gp.getHistory();
+    deepEq('enriquece do cache', h, [
+        { uuid: 'img', content: 'c-img', kind: 'image', imagePath: '/tmp/a.png' },
+        { uuid: 'u1', content: 'c1', kind: 'text', imagePath: null },
+    ]);
+    // Só a chamada GetHistory acima — não reconsulta kind/raw.
+    eq('não reconsulta meta', calls.length - before, 1);
+}
+
+// --- passwordContents ----------------------------------------------------
+// A partir do cache de meta (populado por getMeta), reporta os conteúdos do
+// histórico dado cujo uuid é conhecido como senha. Usado para expurgar pinos
+// que viraram senha. Só olha o cache — nunca dispara chamadas D-Bus.
+section('passwordContents');
+{
+    const { gp, calls } = fakeGPaste({
+        GetElementKind: params => (params.deepUnpack()[0] === 'pw' ? ['Password'] : ['Text']),
+    });
+    await gp.getMeta('pw');   // cacheia como senha
+    await gp.getMeta('u1');   // cacheia como texto
+    const before = calls.length;
+
+    const set = gp.passwordContents([
+        { uuid: 'pw', content: 'segredo' },
+        { uuid: 'u1', content: 'c1' },
+        { uuid: 'u2', content: 'c2' },   // não está no cache
+    ]);
+    check('reporta o conteúdo da senha', set.has('segredo'));
+    check('ignora o item de texto', !set.has('c1'));
+    check('ignora uuid não cacheado', !set.has('c2'));
+    eq('tamanho do set', set.size, 1);
+    eq('não faz chamadas D-Bus', calls.length, before);
+}
+{
+    const { gp } = fakeGPaste({ GetElementKind: () => ['Text'] });
+    eq('histórico vazio -> set vazio', gp.passwordContents([]).size, 0);
+    eq('cache vazio -> set vazio', gp.passwordContents([{ uuid: 'x', content: 'c' }]).size, 0);
+}
+
 // --- roteamento de mutações ---------------------------------------------
 section('add / select / delete / empty');
 {
