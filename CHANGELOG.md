@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.0...v1.3.1) (2026-09-05)
+
+
+### Performance Improvements
+
+* **pins:** grava pins.json de forma assíncrona ([ebdf754](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/ebdf75423e22ec3b893933b77e87330e50311bd5))
+
 # [1.3.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.2.0...v1.3.0) (2026-09-05)
 
 

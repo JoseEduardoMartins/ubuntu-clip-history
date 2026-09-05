@@ -9,6 +9,6 @@
   ],
   "settings-schema": "org.gnome.shell.extensions.clip-history",
   "url": "https://github.com/JoseEduardoMartins/ubuntu-clip-history",
-  "version": 6,
-  "version-name": "1.3.0"
+  "version": 7,
+  "version-name": "1.3.1"
 }
