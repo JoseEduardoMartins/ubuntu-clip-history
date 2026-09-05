@@ -12,7 +12,7 @@ import Pango from 'gi://Pango';
 
 import { preview } from './text.js';
 import { isPinnable } from './pins.js';
-import { filterEntries, clampSelected, nextSelected, reselectIndex, entryKey, keyAction } from './pickerLogic.js';
+import { filterEntries, clampSelected, nextSelected, reselectIndex, entryKey, keyAction, scrollValueFor } from './pickerLogic.js';
 
 export const POPUP_WIDTH = 420;
 const THUMB_SIZE = 48;          // lado da miniatura de imagem, em px lógicos
@@ -511,12 +511,7 @@ export const Picker = GObject.registerClass({
         if (!adj)
             return;
         const box = row.get_allocation_box();
-        const top = box.y1;
-        const bottom = box.y2;
-        if (top < adj.value)
-            adj.value = top;
-        else if (bottom > adj.value + adj.page_size)
-            adj.value = bottom - adj.page_size;
+        adj.value = scrollValueFor(box.y1, box.y2, adj.value, adj.page_size);
     }
 
     _onKeyPress(event) {
