@@ -1,3 +1,12 @@
+# [1.2.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.1.1...v1.2.0) (2026-09-05)
+
+
+### Features
+
+* **paste:** cola com Ctrl+Shift+V em terminais ([9573b5f](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/9573b5f884a82aa279f4e9888b1401cef17d7c67))
+* **picker:** confirma o "Limpar tudo" em dois passos ([6c5f97f](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/6c5f97f62650d2e27a2597d664c2026bb4e770cc))
+* **prefs:** torna o atalho editável na tela de preferências ([10c3134](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/10c31348189d0414fdaf694ee7b991e3af4397e5))
+
 ## [1.1.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.1.0...v1.1.1) (2026-09-05)
 
 
