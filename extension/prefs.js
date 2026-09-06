@@ -46,10 +46,17 @@ export default class ClipHistoryPrefs extends ExtensionPreferences {
             modal: true,
             transient_for: window,
             resizable: false,
-            default_width: 380,
-            default_height: 180,
+            default_width: 400,
+            default_height: 200,
             title: 'Novo atalho',
         });
+
+        // Headerbar com título e um Cancelar explícito — dá uma saída de mouse
+        // clara (antes só o Esc fechava). O botão de fechar padrão também fica.
+        const cancel = new Gtk.Button({ label: 'Cancelar' });
+        cancel.connect('clicked', () => dialog.close());
+        const header = new Adw.HeaderBar();
+        header.pack_start(cancel);
 
         const box = new Gtk.Box({
             orientation: Gtk.Orientation.VERTICAL,
@@ -59,6 +66,7 @@ export default class ClipHistoryPrefs extends ExtensionPreferences {
             margin_start: 24,
             margin_end: 24,
             valign: Gtk.Align.CENTER,
+            vexpand: true,
         });
         box.append(new Gtk.Label({
             label: 'Aperte a nova combinação de teclas',
@@ -69,7 +77,11 @@ export default class ClipHistoryPrefs extends ExtensionPreferences {
             wrap: true,
             css_classes: ['dim-label'],
         }));
-        dialog.set_content(box);
+
+        const toolbar = new Adw.ToolbarView();
+        toolbar.add_top_bar(header);
+        toolbar.set_content(box);
+        dialog.set_content(toolbar);
 
         const controller = new Gtk.EventControllerKey();
         controller.connect('key-pressed', (_c, keyval, _keycode, state) => {
