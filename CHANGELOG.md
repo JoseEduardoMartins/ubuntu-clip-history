@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.1...v1.3.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **pins:** serializa e coalesce as gravações do pins.json ([629f47d](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/629f47d0a5e591c9be27de9f19b090c2164fd7ae))
+
 ## [1.3.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.0...v1.3.1) (2026-09-05)
 
 
