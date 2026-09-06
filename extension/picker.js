@@ -274,12 +274,18 @@ export const Picker = GObject.registerClass({
         const token = this._renderToken;
 
         if (this._entries.length === 0) {
-            this._list.add_child(new St.Label({
+            const empty = new St.Label({
                 style_class: 'clip-history-empty',
                 text: this._error
                     ? _('GPaste unavailable. Install/enable gpaste-2 (sudo apt install gpaste-2).')
                     : _('Nothing here yet.'),
-            }));
+                x_expand: true,
+            });
+            // A mensagem de erro do GPaste é longa; quebra em linhas em vez de
+            // ser cortada (o ScrollView não rola na horizontal).
+            empty.clutter_text.line_wrap = true;
+            empty.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+            this._list.add_child(empty);
             return;
         }
 
