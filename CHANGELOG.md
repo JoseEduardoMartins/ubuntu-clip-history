@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.4.0...v1.4.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **picker:** quebra a mensagem de estado vazio em linhas ([40a1c1b](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/40a1c1b4875f228b7af75b5eb4daa78550e855aa))
+
 # [1.4.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.2...v1.4.0) (2026-09-06)
 
 
