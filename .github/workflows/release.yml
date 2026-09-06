@@ -34,11 +34,12 @@ jobs:
         with:
           node-version: 20
 
-      # gjs/GLib/zip são usados pelo prepareCmd (build-zip.sh) durante o release.
+      # GLib/zip/gettext são usados pelo prepareCmd (build-zip.sh) no release:
+      # glib-compile-schemas, zip e msgfmt (compila as traduções po/ -> .mo).
       - name: Instalar ferramentas de empacotamento
         run: |
           sudo apt-get update
-          sudo apt-get install -y libglib2.0-bin zip
+          sudo apt-get install -y libglib2.0-bin zip gettext
 
       - name: Instalar dependências
         run: npm install

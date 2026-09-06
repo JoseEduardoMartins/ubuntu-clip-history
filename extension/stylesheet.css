@@ -97,3 +97,63 @@
 .clip-history-clear.confirming:hover {
     background-color: rgba(255, 80, 80, 0.32);
 }
+
+/* ---------------------------------------------------------------------------
+ * Variante CLARA: aplicada quando o sistema pede tema claro (a classe 'light'
+ * é alternada em picker.js via St.Settings.color_scheme). O bloco acima é o
+ * default escuro; aqui só sobrescrevemos as cores que precisam inverter.
+ * ------------------------------------------------------------------------- */
+.clip-history.light {
+    background-color: rgba(250, 250, 250, 0.98);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25);
+}
+
+.clip-history.light .clip-history-title {
+    color: #1a1a1a;
+}
+
+.clip-history.light .clip-history-row-label {
+    color: #1a1a1a;
+}
+
+.clip-history.light .clip-history-row:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+.clip-history.light .clip-history-row.selected {
+    background-color: rgba(60, 120, 255, 0.20);
+}
+
+.clip-history.light .clip-history-empty {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.clip-history.light .clip-history-lock {
+    color: rgba(0, 0, 0, 0.5);
+}
+
+.clip-history.light .clip-history-icon-button {
+    color: #333333;
+}
+
+.clip-history.light .clip-history-icon-button:hover {
+    background-color: rgba(0, 0, 0, 0.10);
+}
+
+.clip-history.light .clip-history-clear {
+    color: #c0341d;
+}
+
+.clip-history.light .clip-history-clear:hover {
+    background-color: rgba(220, 50, 40, 0.12);
+}
+
+.clip-history.light .clip-history-clear.confirming {
+    background-color: rgba(220, 50, 40, 0.18);
+    color: #7a0000;
+}
+
+.clip-history.light .clip-history-clear.confirming:hover {
+    background-color: rgba(220, 50, 40, 0.28);
+}

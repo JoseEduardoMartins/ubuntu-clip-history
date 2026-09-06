@@ -87,6 +87,18 @@ O atalho `Super+V` é **editável** na tela de preferências da extensão
 (`gnome-extensions prefs clip-history@joseeduardomartins.com`): clique na linha
 do atalho e aperte a nova combinação (`Backspace` desabilita, `Esc` cancela).
 
+O popup **acompanha o tema claro/escuro** do sistema (GNOME 47/48).
+
+## Traduções
+
+A interface usa `gettext` (domínio `clip-history@joseeduardomartins.com`), com as
+strings-fonte em **inglês**. As traduções ficam em `po/` (`*.po`); o `install.sh`
+e o empacotamento compilam cada `.po` em
+`extension/locale/<lang>/LC_MESSAGES/…mo` (precisa do pacote `gettext`/`msgfmt`).
+Para adicionar um idioma, copie `po/clip-history@joseeduardomartins.com.pot` para
+`po/<lang>.po`, preencha os `msgstr` e reinstale. Sem `.mo` (ou sem `gettext`),
+a UI cai no inglês dos msgids. Já acompanha o **pt_BR** (`po/pt_BR.po`).
+
 ## Testes e CI
 
 A lógica pura da extensão (sem `St`/`Clutter`) vive em módulos isolados —

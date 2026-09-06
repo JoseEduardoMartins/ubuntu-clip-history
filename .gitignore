@@ -4,3 +4,6 @@ node_modules/
 
 # schema compilado (gerado no install/empacotamento)
 extension/schemas/gschemas.compiled
+
+# traduções compiladas (geradas de po/*.po no install/empacotamento)
+extension/locale/

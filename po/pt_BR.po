@@ -1,0 +1,88 @@
+# Clip History — Brazilian Portuguese translation.
+# Copyright (C) 2026 Eduardo Martins
+# This file is distributed under the same license as the clip-history package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: clip-history\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-05 00:00+0000\n"
+"PO-Revision-Date: 2026-09-05 00:00+0000\n"
+"Last-Translator: Eduardo Martins\n"
+"Language-Team: Brazilian Portuguese\n"
+"Language: pt_BR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: extension/picker.js
+msgid "Clipboard"
+msgstr "Área de Transferência"
+
+#: extension/picker.js
+msgid "Close"
+msgstr "Fechar"
+
+#: extension/picker.js
+msgid "Search…"
+msgstr "Buscar…"
+
+#: extension/picker.js
+msgid "GPaste unavailable. Install/enable gpaste-2 (sudo apt install gpaste-2)."
+msgstr "GPaste indisponível. Instale/ative o gpaste-2 (sudo apt install gpaste-2)."
+
+#: extension/picker.js
+msgid "Nothing here yet."
+msgstr "Nada aqui ainda."
+
+#: extension/picker.js
+msgid "Pin"
+msgstr "Fixar"
+
+#: extension/picker.js
+msgid "Unpin"
+msgstr "Desfixar"
+
+#: extension/picker.js
+msgid "Delete"
+msgstr "Excluir"
+
+#: extension/picker.js
+msgid "Clear all"
+msgstr "Limpar tudo"
+
+#: extension/picker.js
+msgid "⚠ Confirm clear?"
+msgstr "⚠ Confirmar limpeza?"
+
+#: extension/prefs.js
+msgid "Shortcut"
+msgstr "Atalho"
+
+#: extension/prefs.js
+msgid "Open the history"
+msgstr "Abrir o histórico"
+
+#: extension/prefs.js
+msgid "Click to reset · Backspace clears"
+msgstr "Clique para redefinir · Backspace limpa"
+
+#: extension/prefs.js
+msgid "Disabled"
+msgstr "Desabilitado"
+
+#: extension/prefs.js
+msgid "New shortcut"
+msgstr "Novo atalho"
+
+#: extension/prefs.js
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: extension/prefs.js
+msgid "Press the new key combination"
+msgstr "Aperte a nova combinação de teclas"
+
+#: extension/prefs.js
+msgid "Esc cancels · Backspace disables"
+msgstr "Esc cancela · Backspace desabilita"

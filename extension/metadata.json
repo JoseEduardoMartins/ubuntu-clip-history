@@ -8,6 +8,7 @@
     "48"
   ],
   "settings-schema": "org.gnome.shell.extensions.clip-history",
+  "gettext-domain": "clip-history@joseeduardomartins.com",
   "url": "https://github.com/JoseEduardoMartins/ubuntu-clip-history",
   "version": 8,
   "version-name": "1.3.2"
