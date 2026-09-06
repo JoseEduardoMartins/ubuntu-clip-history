@@ -65,8 +65,8 @@ não houver caret disponível, cai no canto inferior direito.
 
 - Copie textos **ou imagens** normalmente (`Ctrl+C`).
 - `Super+V` abre o histórico. Digite para filtrar, `↑`/`↓` (e `PgUp`/`PgDn`,
-  `Ctrl+Home`/`Ctrl+End`) para navegar, `Enter` para colar, `Alt+1..9` para
-  escolha rápida. `Esc` limpa a busca se houver texto; com a busca vazia, fecha.
+  `Ctrl+Home`/`Ctrl+End`) para navegar, `Enter` para colar. `Esc` limpa a busca
+  se houver texto; com a busca vazia, fecha.
 - **Imagens** aparecem como miniatura; escolher recopia a imagem pro clipboard.
 - **Senhas** (itens que o GPaste marca como `Password`) aparecem **mascaradas**
   (🔒 `••••••••`) — o valor nunca é exibido, só recopiado ao escolher. Também não
