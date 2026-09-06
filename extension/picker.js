@@ -50,15 +50,39 @@ export const Picker = GObject.registerClass({
         this._buildList();
         this._buildFooter();
 
-        // Cancela timers pendentes ao destruir (o popup fecha antes deles
-        // dispararem): o debounce da busca e a confirmação do "Limpar tudo".
+        // Tema: acompanha o color-scheme do sistema. O bloco escuro do CSS é o
+        // default; a classe 'light' sobrepõe quando o sistema pede tema claro
+        // (GNOME 47/48). Reage ao vivo à troca de tema.
+        this._stSettings = St.Settings.get();
+        this._colorSchemeId = this._stSettings.connect(
+            'notify::color-scheme', () => this._applyColorScheme());
+        this._applyColorScheme();
+
+        // Cancela timers pendentes e desconecta o St.Settings ao destruir (o
+        // popup fecha antes deles dispararem): debounce da busca, confirmação
+        // do "Limpar tudo" e o listener de tema.
         this.connect('destroy', () => {
             this._cancelFilter();
             this._cancelClearConfirm();
+            if (this._colorSchemeId) {
+                this._stSettings.disconnect(this._colorSchemeId);
+                this._colorSchemeId = 0;
+            }
         });
 
         this.connect('key-press-event', (_a, event) => this._onKeyPress(event));
         this.connect('button-press-event', (_a, event) => this._onButtonPress(event));
+    }
+
+    // Adiciona/remove a classe 'light' conforme a preferência do sistema. Sem
+    // preferência (DEFAULT) ou PREFER_DARK ficam no tema escuro padrão do CSS.
+    _applyColorScheme() {
+        const light =
+            this._stSettings.color_scheme === St.SystemColorScheme.PREFER_LIGHT;
+        if (light)
+            this.add_style_class_name('light');
+        else
+            this.remove_style_class_name('light');
     }
 
     // Como o picker é modal (pushModal), cliques fora dos seus limites também
