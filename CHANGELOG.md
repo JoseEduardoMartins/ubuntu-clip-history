@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.5.0...v1.6.0) (2026-09-06)
+
+
+### Features
+
+* **install:** valida o ambiente antes de instalar ([23f0827](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/23f0827a9944afb2dc97593bc13343159908d4bf))
+
 # [1.5.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.4.1...v1.5.0) (2026-09-06)
 
 
