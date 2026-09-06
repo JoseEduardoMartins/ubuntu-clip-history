@@ -298,7 +298,6 @@ export const Picker = GObject.registerClass({
             if (i === this._selected)
                 row.add_style_class_name('selected');
 
-            const prefix = i < 9 ? `${i + 1}. ` : '';
             const isImage = entry.kind === 'image' && entry.imagePath;
             const isPassword = entry.kind === 'password';
             const known = isImage || isPassword; // kind já resolvido/cacheado
@@ -308,11 +307,11 @@ export const Picker = GObject.registerClass({
             // poder trocar.
             let content;
             if (isImage)
-                content = this._imageContent(prefix, entry.imagePath, entry.content);
+                content = this._imageContent(entry.imagePath, entry.content);
             else if (isPassword)
-                content = this._passwordContent(prefix);
+                content = this._passwordContent();
             else
-                content = this._textContent(prefix, entry.content);
+                content = this._textContent(entry.content);
             row.add_child(content);
             row._contentActor = content;
 
@@ -353,9 +352,9 @@ export const Picker = GObject.registerClass({
                     if (!meta)
                         return;
                     if (meta.kind === 'image' && meta.imagePath)
-                        this._upgradeToImage(row, entry, prefix, meta.imagePath);
+                        this._upgradeToImage(row, entry, meta.imagePath);
                     else if (meta.kind === 'password')
-                        this._upgradeToPassword(row, entry, prefix);
+                        this._upgradeToPassword(row, entry);
                 }).catch(() => {});
             }
         });
@@ -365,7 +364,7 @@ export const Picker = GObject.registerClass({
     // remove o botão de pino. Muta a `entry` (kind/imagePath) para que ações de
     // teclado (Ctrl+P) e futuros re-renders já a tratem como imagem, e para
     // cachear a descoberta em `this._all`.
-    _upgradeToImage(row, entry, prefix, imagePath) {
+    _upgradeToImage(row, entry, imagePath) {
         entry.kind = 'image';
         entry.imagePath = imagePath;
 
@@ -373,7 +372,7 @@ export const Picker = GObject.registerClass({
             row.remove_child(row._contentActor);
             row._contentActor.destroy();
         }
-        const img = this._imageContent(prefix, imagePath, entry.content);
+        const img = this._imageContent(imagePath, entry.content);
         row.insert_child_at_index(img, 0);
         row._contentActor = img;
 
@@ -388,7 +387,7 @@ export const Picker = GObject.registerClass({
     // o botão de pino. Muta a `entry` (kind) pra que teclado e re-renders já a
     // tratem como senha (não fixável, sempre mascarada). O valor real nunca é
     // exibido — só recopiado ao escolher (via Select).
-    _upgradeToPassword(row, entry, prefix) {
+    _upgradeToPassword(row, entry) {
         // Se estava fixado, o pino precisa ser expurgado do store: um item
         // fixado como texto que o GPaste agora marca como senha não pode
         // continuar persistido em texto puro em pins.json (ver _onUnpinned).
@@ -399,7 +398,7 @@ export const Picker = GObject.registerClass({
             row.remove_child(row._contentActor);
             row._contentActor.destroy();
         }
-        const content = this._passwordContent(prefix);
+        const content = this._passwordContent();
         row.insert_child_at_index(content, 0);
         row._contentActor = content;
 
@@ -414,10 +413,10 @@ export const Picker = GObject.registerClass({
             this.emit('unpinned', entry.content);
     }
 
-    _textContent(prefix, content) {
+    _textContent(content) {
         const label = new St.Label({
             style_class: 'clip-history-row-label',
-            text: prefix + preview(content),
+            text: preview(content),
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
@@ -429,7 +428,7 @@ export const Picker = GObject.registerClass({
     // Linha de senha: cadeado + máscara fixa. NUNCA mostra o conteúdo (item
     // marcado como Password pelo GPaste). Escolher ainda recopia o valor real
     // pro clipboard (é o ponto do histórico); só a exibição é protegida.
-    _passwordContent(prefix) {
+    _passwordContent() {
         const box = new St.BoxLayout({
             style_class: 'clip-history-row-label',
             x_expand: true,
@@ -441,7 +440,7 @@ export const Picker = GObject.registerClass({
             icon_size: 14,
         }));
         box.add_child(new St.Label({
-            text: prefix + PASSWORD_MASK,
+            text: PASSWORD_MASK,
             y_align: Clutter.ActorAlign.CENTER,
         }));
         return box;
@@ -449,7 +448,7 @@ export const Picker = GObject.registerClass({
 
     // Linha de imagem: miniatura (via TextureCache, async/cacheado) + legenda
     // (o display string do GPaste, ex.: "[Image, 1920 x 1080 (…)]").
-    _imageContent(prefix, imagePath, content) {
+    _imageContent(imagePath, content) {
         const box = new St.BoxLayout({
             style_class: 'clip-history-row-label',
             x_expand: true,
@@ -480,7 +479,7 @@ export const Picker = GObject.registerClass({
         box.add_child(thumbBin);
 
         const caption = new St.Label({
-            text: prefix + preview(content),
+            text: preview(content),
             y_align: Clutter.ActorAlign.CENTER,
         });
         caption.clutter_text.single_line_mode = true;
