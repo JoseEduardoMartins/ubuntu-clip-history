@@ -99,6 +99,10 @@ Para adicionar um idioma, copie `po/clip-history@joseeduardomartins.com.pot` par
 `po/<lang>.po`, preencha os `msgstr` e reinstale. Sem `.mo` (ou sem `gettext`),
 a UI cai no inglês dos msgids. Já acompanha o **pt_BR** (`po/pt_BR.po`).
 
+O CI roda `.github/scripts/check-i18n.mjs`, que **falha** se alguma string `_()`
+do código não estiver no `.pot` e em todos os `.po` (ou se sobrar tradução
+órfã / `msgstr` vazio) — assim as traduções não silenciam ao evoluir a UI.
+
 ## Testes e CI
 
 A lógica pura da extensão (sem `St`/`Clutter`) vive em módulos isolados —
