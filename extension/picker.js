@@ -10,6 +10,8 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 
+import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+
 import { preview } from './text.js';
 import { isPinnable } from './pins.js';
 import { filterEntries, clampSelected, nextSelected, reselectIndex, entryKey, keyAction, scrollValueFor } from './pickerLogic.js';
@@ -19,9 +21,11 @@ const THUMB_SIZE = 48;          // lado da miniatura de imagem, em px lógicos
 const PAGE_JUMP = 10;           // linhas puladas por PageUp/PageDown
 const FILTER_DEBOUNCE_MS = 120; // espera parar de digitar antes de refiltrar
 const PASSWORD_MASK = '••••••••'; // legenda dos itens de senha (nunca o valor)
-const CLEAR_LABEL = 'Limpar tudo';
-const CLEAR_CONFIRM_LABEL = '⚠ Confirmar limpeza?';
 const CLEAR_CONFIRM_MS = 3000;  // janela p/ o 2º clique antes de reverter
+// Rótulos do "Limpar tudo" via função (não const de módulo): o gettext deve
+// rodar em runtime, com o domínio de tradução já ligado.
+const clearLabel = () => _('Clear all');
+const clearConfirmLabel = () => _('⚠ Confirm clear?');
 
 export const Picker = GObject.registerClass({
     Signals: {
@@ -104,13 +108,13 @@ export const Picker = GObject.registerClass({
         const header = new St.BoxLayout({ style_class: 'clip-history-header' });
         header.add_child(new St.Label({
             style_class: 'clip-history-title',
-            text: 'Área de Transferência',
+            text: _('Clipboard'),
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         }));
         const close = new St.Button({
             style_class: 'clip-history-icon-button',
-            accessible_name: 'Fechar',
+            accessible_name: _('Close'),
             child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16 }),
         });
         close.connect('clicked', () => this.emit('dismissed'));
@@ -121,7 +125,7 @@ export const Picker = GObject.registerClass({
     _buildSearch() {
         this._search = new St.Entry({
             style_class: 'clip-history-search',
-            hint_text: 'Buscar…',
+            hint_text: _('Search…'),
             can_focus: true,
             x_expand: true,
         });
@@ -181,7 +185,7 @@ export const Picker = GObject.registerClass({
         const footer = new St.BoxLayout({ style_class: 'clip-history-footer' });
         this._clearButton = new St.Button({
             style_class: 'clip-history-clear',
-            label: CLEAR_LABEL,
+            label: clearLabel(),
             x_expand: true,
         });
         // Limpar tudo é irreversível (apaga histórico + favoritos), então o
@@ -201,7 +205,7 @@ export const Picker = GObject.registerClass({
             return;
         }
         this._clearArmed = true;
-        this._clearButton.label = CLEAR_CONFIRM_LABEL;
+        this._clearButton.label = clearConfirmLabel();
         this._clearButton.add_style_class_name('confirming');
         this._clearTimeout = GLib.timeout_add(
             GLib.PRIORITY_DEFAULT, CLEAR_CONFIRM_MS, () => {
@@ -215,7 +219,7 @@ export const Picker = GObject.registerClass({
     _disarmClear() {
         this._clearArmed = false;
         if (this._clearButton) {
-            this._clearButton.label = CLEAR_LABEL;
+            this._clearButton.label = clearLabel();
             this._clearButton.remove_style_class_name('confirming');
         }
     }
@@ -273,8 +277,8 @@ export const Picker = GObject.registerClass({
             this._list.add_child(new St.Label({
                 style_class: 'clip-history-empty',
                 text: this._error
-                    ? 'GPaste indisponível. Instale/ative o gpaste-2 (sudo apt install gpaste-2).'
-                    : 'Nada aqui ainda.',
+                    ? _('GPaste unavailable. Install/enable gpaste-2 (sudo apt install gpaste-2).')
+                    : _('Nothing here yet.'),
             }));
             return;
         }
@@ -310,7 +314,7 @@ export const Picker = GObject.registerClass({
             if (isPinnable(entry)) {
                 const pin = new St.Button({
                     style_class: 'clip-history-icon-button',
-                    accessible_name: entry.pinned ? 'Desfixar' : 'Fixar',
+                    accessible_name: entry.pinned ? _('Unpin') : _('Pin'),
                     child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 14 }),
                     opacity: entry.pinned ? 255 : 90,
                 });
@@ -321,7 +325,7 @@ export const Picker = GObject.registerClass({
 
             const del = new St.Button({
                 style_class: 'clip-history-icon-button',
-                accessible_name: 'Excluir',
+                accessible_name: _('Delete'),
                 child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 14 }),
             });
             del.connect('clicked', () => this.emit('deleted', entry.uuid ?? '', entry.content));

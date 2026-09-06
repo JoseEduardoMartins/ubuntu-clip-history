@@ -141,9 +141,25 @@ PR. Config do release em `.releaserc.json`.
 ## Instalação e empacotamento
 
 `install.sh` copia `extension/` para
-`~/.local/share/gnome-shell/extensions/<uuid>/`, compila o gschema, libera o
-`Super+V` do `toggle-message-tray` e habilita a extensão. No **Wayland**, a
+`~/.local/share/gnome-shell/extensions/<uuid>/`, compila o gschema, **compila as
+traduções** (`po/*.po` → `extension/locale/<lang>/LC_MESSAGES/<uuid>.mo` via
+`msgfmt`), libera o `Super+V` do `toggle-message-tray` e habilita a extensão. O
+`scripts/build-zip.sh` faz o mesmo no empacotamento do release. No **Wayland**, a
 extensão nova só carrega após **logout/login**.
+
+## i18n e tema
+
+A UI é internacionalizada com `gettext` (domínio `clip-history@joseeduardomartins.com`
+no `metadata.json`; o Shell/Adw fazem o `bindtextdomain` a partir de `locale/`).
+As strings-fonte são em **inglês**, envoltas em `_()` **no ponto de uso** (não em
+`const` de módulo — a tradução roda em runtime, com o domínio já ligado):
+`picker.js` importa `gettext` de `extension.js`, `prefs.js` usa `this.gettext`.
+Só a casca acoplada tem strings de UI; os módulos puros não. O `.pot` e o
+`po/pt_BR.po` versionados geram os `.mo` (não versionados) no install/empacote.
+
+O popup é **theme-aware**: `picker.js` lê `St.Settings.color_scheme` e alterna a
+classe `light` (reagindo a `notify::color-scheme`); o `stylesheet.css` tem o bloco
+escuro como default e overrides `.clip-history.light …`.
 
 ## Restrições e pontos em aberto
 

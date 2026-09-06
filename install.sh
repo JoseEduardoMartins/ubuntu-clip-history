@@ -3,8 +3,22 @@
 set -euo pipefail
 
 UUID="clip-history@joseeduardomartins.com"
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/extension" && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SRC="$ROOT/extension"
 DEST="$HOME/.local/share/gnome-shell/extensions/$UUID"
+
+echo "==> Compilando traduções (po/*.po -> locale/…/$UUID.mo)"
+if command -v msgfmt >/dev/null 2>&1; then
+    for po in "$ROOT"/po/*.po; do
+        [ -e "$po" ] || continue
+        lang="$(basename "$po" .po)"
+        mo_dir="$SRC/locale/$lang/LC_MESSAGES"
+        mkdir -p "$mo_dir"
+        msgfmt "$po" -o "$mo_dir/$UUID.mo"
+    done
+else
+    echo "    !! msgfmt não encontrado (sudo apt install gettext); a UI ficará em inglês."
+fi
 
 echo "==> Instalando extensão em $DEST"
 rm -rf "$DEST"

@@ -10,22 +10,23 @@ const KEY = 'toggle-clip-history';
 export default class ClipHistoryPrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
+        const _ = this.gettext.bind(this);
 
         const page = new Adw.PreferencesPage();
-        const group = new Adw.PreferencesGroup({ title: 'Atalho' });
+        const group = new Adw.PreferencesGroup({ title: _('Shortcut') });
         page.add(group);
 
         // Linha ativável: clicar (ou Enter) abre a captura da nova combinação.
         const row = new Adw.ActionRow({
-            title: 'Abrir o histórico',
-            subtitle: 'Clique para redefinir · Backspace limpa',
+            title: _('Open the history'),
+            subtitle: _('Click to reset · Backspace clears'),
             activatable: true,
         });
 
         const label = new Gtk.ShortcutLabel({
             valign: Gtk.Align.CENTER,
             // disabled-text aparece quando o atalho está vazio (desabilitado).
-            disabled_text: 'Desabilitado',
+            disabled_text: _('Disabled'),
             accelerator: settings.get_strv(KEY)[0] ?? '',
         });
         settings.connect(`changed::${KEY}`, () => {
@@ -42,18 +43,19 @@ export default class ClipHistoryPrefs extends ExtensionPreferences {
     // Esc cancela sem mudar; Backspace limpa (desabilita o atalho); qualquer
     // combinação com modificador válida é aceita e fecha o diálogo.
     _captureShortcut(window, settings) {
+        const _ = this.gettext.bind(this);
         const dialog = new Adw.Window({
             modal: true,
             transient_for: window,
             resizable: false,
             default_width: 400,
             default_height: 200,
-            title: 'Novo atalho',
+            title: _('New shortcut'),
         });
 
         // Headerbar com título e um Cancelar explícito — dá uma saída de mouse
         // clara (antes só o Esc fechava). O botão de fechar padrão também fica.
-        const cancel = new Gtk.Button({ label: 'Cancelar' });
+        const cancel = new Gtk.Button({ label: _('Cancel') });
         cancel.connect('clicked', () => dialog.close());
         const header = new Adw.HeaderBar();
         header.pack_start(cancel);
@@ -69,11 +71,11 @@ export default class ClipHistoryPrefs extends ExtensionPreferences {
             vexpand: true,
         });
         box.append(new Gtk.Label({
-            label: 'Aperte a nova combinação de teclas',
+            label: _('Press the new key combination'),
             wrap: true,
         }));
         box.append(new Gtk.Label({
-            label: 'Esc cancela · Backspace desabilita',
+            label: _('Esc cancels · Backspace disables'),
             wrap: true,
             css_classes: ['dim-label'],
         }));
