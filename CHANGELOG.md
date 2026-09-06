@@ -1,3 +1,12 @@
+# [1.4.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.2...v1.4.0) (2026-09-06)
+
+
+### Features
+
+* **i18n:** internacionaliza a UI com gettext (+ pt_BR) ([7972ec8](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/7972ec852c1584e6ae6e4db6e89f7077984d82f5))
+* **picker:** popup acompanha o tema claro/escuro do sistema ([8bd5591](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/8bd5591538cd6553ff4b208eb98d913b7e6ac70c))
+* **prefs:** headerbar e botão Cancelar no diálogo de atalho ([c83c3de](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/c83c3de31a383984ffb7f6c650b409badf49cb51))
+
 ## [1.3.2](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.3.1...v1.3.2) (2026-09-06)
 
 
