@@ -10,6 +10,6 @@
   "settings-schema": "org.gnome.shell.extensions.clip-history",
   "gettext-domain": "clip-history@joseeduardomartins.com",
   "url": "https://github.com/JoseEduardoMartins/ubuntu-clip-history",
-  "version": 10,
-  "version-name": "1.4.1"
+  "version": 11,
+  "version-name": "1.5.0"
 }

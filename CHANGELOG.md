@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.4.1...v1.5.0) (2026-09-06)
+
+
+### Features
+
+* **picker:** remove a numeração 1..9 das linhas da lista ([a07bb3e](https://github.com/JoseEduardoMartins/ubuntu-clip-history/commit/a07bb3eaea12e0b832870bdd4e983e6809d2b8dc))
+
 ## [1.4.1](https://github.com/JoseEduardoMartins/ubuntu-clip-history/compare/v1.4.0...v1.4.1) (2026-09-06)
 
 
