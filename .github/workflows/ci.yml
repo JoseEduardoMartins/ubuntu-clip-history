@@ -39,6 +39,9 @@ jobs:
       - name: Validar metadata.json
         run: node .github/scripts/check-metadata.mjs
 
+      - name: Validar traduções (i18n em sincronia)
+        run: node .github/scripts/check-i18n.mjs
+
       - name: Syntax-check de todos os .js da extensão
         run: |
           fail=0

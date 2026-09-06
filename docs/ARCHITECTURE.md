@@ -122,8 +122,10 @@ para módulos puros (como `pickerLogic.js`) — ou injetar as dependências, com
 - **`.github/workflows/ci.yml`** (em Pull Request): instala as deps, roda ESLint
   (`npm run lint`, config flat em `eslint.config.js` com os globais do GJS), a
   suíte (`npm test`), valida o schema (`glib-compile-schemas --strict`), o
-  `metadata.json` (`.github/scripts/check-metadata.mjs`) e a sintaxe de todos os
-  `.js`. As deps Node são só de dev; nada disso vai pro pacote da extensão.
+  `metadata.json` (`.github/scripts/check-metadata.mjs`), a **sincronia das
+  traduções** (`.github/scripts/check-i18n.mjs` — cada `_()` no código deve estar
+  no `.pot` e em cada `.po`, sem órfãos nem `msgstr` vazios) e a sintaxe de todos
+  os `.js`. As deps Node são só de dev; nada disso vai pro pacote da extensão.
 - **`.github/workflows/release.yml`** (push na `main`): **semantic-release**
   analisa os commits (Conventional Commits), calcula a próxima versão semver,
   gera o `CHANGELOG.md`, empacota `extension/` num zip (`scripts/build-zip.sh`)
