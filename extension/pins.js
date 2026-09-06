@@ -101,33 +101,66 @@ export function loadPins(path) {
     }
 }
 
-// Escrita ASSÍNCRONA (não bloqueia o compositor): o processo do gnome-shell não
-// deve fazer I/O de disco no seu loop principal. Devolve uma Promise que SEMPRE
-// resolve — erros são logados, nunca rejeitados — para que os chamadores possam
-// disparar sem `await` (fire-and-forget) sem gerar unhandled rejection. Os testes
-// aguardam a Promise antes de reler. O mkdir do diretório-pai segue síncrono
-// (barato, e garante o destino antes do write). Cada save grava o estado
-// completo e o REPLACE_DESTINATION é atômico (temp + rename): dois writes
-// sobrepostos terminam em last-write-wins com o arquivo sempre íntegro.
+// Estado de escrita por caminho, para SERIALIZAR e COALESCER os writes async.
+// Escrituras `replace_contents_bytes_async` independentes no mesmo arquivo NÃO
+// têm ordem garantida (o GIO usa um pool de threads): a que TERMINA por último
+// vence, não a que foi CHAMADA por último — então "pino → despino" rápido podia
+// deixar o pino no disco, e um segredo podia persistir. Aqui só há um write em
+// voo por caminho; chamadas durante um write viram `pending` (o mais novo
+// substitui os anteriores — coalescing), gravado ao fim do write atual.
+//   path -> { inFlight: bool, pending: Uint8Array|null, waiters: (()=>void)[] }
+const _writers = new Map();
+
+function _drainWrite(path) {
+    const st = _writers.get(path);
+    const bytes = st.pending;
+    st.pending = null;
+    const waiters = st.waiters;   // resolve estes quando ESTES bytes forem escritos
+    st.waiters = [];
+    st.inFlight = true;
+    const file = Gio.File.new_for_path(path);
+    file.replace_contents_bytes_async(
+        GLib.Bytes.new(bytes), null, false,
+        Gio.FileCreateFlags.REPLACE_DESTINATION, null,
+        (f, res) => {
+            try {
+                f.replace_contents_finish(res);
+            } catch (e) {
+                // logError existe no gnome-shell; nos testes (gjs) cai no console.
+                (globalThis.logError ?? console.error)(
+                    e, 'clip-history: falha ao salvar pins.json');
+            }
+            for (const resolve of waiters)
+                resolve();
+            if (st.pending !== null)
+                _drainWrite(path);    // um estado mais novo chegou: grava-o agora
+            else
+                st.inFlight = false;
+        });
+}
+
+// Escrita ASSÍNCRONA (não bloqueia o compositor) e SERIALIZADA/COALESCIDA por
+// caminho (ver _writers). Devolve uma Promise que SEMPRE resolve — erros são
+// logados, nunca rejeitados — para os chamadores fire-and-forget não gerarem
+// unhandled rejection. A Promise resolve quando o disco reflete ESTE estado ou
+// um mais novo que o substituiu (coalescing). O mkdir do pai segue síncrono
+// (barato, garante o destino); o REPLACE_DESTINATION é atômico (temp + rename).
 export function savePins(path, pins) {
     const file = Gio.File.new_for_path(path);
     const parent = file.get_parent();
     if (parent)
         GLib.mkdir_with_parents(parent.get_path(), 0o755);
-    const text = JSON.stringify(pins, null, 2);
-    const bytes = GLib.Bytes.new(_encoder.encode(text));
+    const bytes = _encoder.encode(JSON.stringify(pins, null, 2));
+
+    let st = _writers.get(path);
+    if (!st) {
+        st = { inFlight: false, pending: null, waiters: [] };
+        _writers.set(path, st);
+    }
+    st.pending = bytes;   // coalesce: o estado mais novo substitui o pendente
     return new Promise(resolve => {
-        file.replace_contents_bytes_async(
-            bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
-            (f, res) => {
-                try {
-                    f.replace_contents_finish(res);
-                } catch (e) {
-                    // logError existe no gnome-shell; nos testes (gjs) cai no console.
-                    (globalThis.logError ?? console.error)(
-                        e, 'clip-history: falha ao salvar pins.json');
-                }
-                resolve();
-            });
+        st.waiters.push(resolve);
+        if (!st.inFlight)
+            _drainWrite(path);
     });
 }

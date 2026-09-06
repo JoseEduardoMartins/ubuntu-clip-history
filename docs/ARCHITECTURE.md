@@ -32,7 +32,7 @@ existe para tornar testável o que carrega a complexidade real.
 | `gpaste.js` | Wrapper fino do D-Bus do GPaste (**chamadas assíncronas**): `getHistory` (barato: uuid+content, já enriquecido com o `kind`/`imagePath` cacheado quando disponível), `getMeta` (lazy por uuid: kind/imagePath, cacheado), `passwordContents` (do cache, sem D-Bus), `add`, `select`, `delete`, `empty`, sinal `Update` | Gio/GLib |
 | `picker.js` | UI do popup (`St`): header, busca, lista rolável (texto + **miniatura de imagem** via `TextureCache`), footer; navegação por teclado; emite sinais | St/Clutter/GObject/Gio |
 | `pickerLogic.js` | **Puro:** `filterEntries`, `clampSelected`, `nextSelected`, `reselectIndex`/`entryKey` (preserva a seleção pelo item no refresh), `keyAction` | nenhum |
-| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`)/`dropKnownPasswords`; **+ persistência** em `~/.local/share/clip-history/pins.json` via Gio (`loadPins` valida o shape de cada pino) | misto (lógica pura + Gio) |
+| `pins.js` | **Puro:** `isPinned`/`addPin`/`removePin`/`mergeEntries` (propaga `kind`/`imagePath`)/`dropKnownPasswords`; **+ persistência** em `~/.local/share/clip-history/pins.json` via Gio (`loadPins` valida o shape; `savePins` grava **assíncrono**, serializado e coalescido por caminho — o último estado chamado vence) | misto (lógica pura + Gio) |
 | `position.js` | **Puro:** `computePosition`, `validCaret`, `pickMonitor` — onde o popup aparece dado caret + work area (multi-monitor) | nenhum |
 | `text.js` | **Puro:** `preview` — colapsa/apara texto para o label da linha | nenhum |
 | `paste.js` | **Puro:** `isTerminal(wmClass)` — se a janela focada é um terminal (colar = `Ctrl+Shift+V` em vez de `Ctrl+V`) | nenhum |
